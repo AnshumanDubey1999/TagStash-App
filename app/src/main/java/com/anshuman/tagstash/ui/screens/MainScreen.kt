@@ -1,0 +1,149 @@
+package com.anshuman.tagstash.ui.screens
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import com.anshuman.tagstash.data.model.FileItem
+import com.anshuman.tagstash.data.utils.openFileWithOS
+import com.anshuman.tagstash.ui.components.BreadcrumbsBar
+import com.anshuman.tagstash.ui.components.EmptyDirectoryView
+import com.anshuman.tagstash.ui.components.ErrorView
+import com.anshuman.tagstash.ui.components.FileRowItem
+import com.anshuman.tagstash.ui.components.PermissionRequestView
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MainScreen(
+    permissionGranted: Boolean,
+    onRequestPermission: () -> Unit
+) {
+    val context = LocalContext.current
+    var currentDirectory by remember { mutableStateOf(File("/storage/emulated/0")) }
+    var filesList by remember { mutableStateOf<List<FileItem>>(emptyList()) }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Intercept hardware Back Button
+    val isHome = currentDirectory.absolutePath == "/storage/emulated/0"
+    BackHandler(enabled = permissionGranted && !isHome) {
+        val parent = currentDirectory.parentFile
+        if (parent != null) {
+            currentDirectory = parent
+        }
+    }
+
+    // Load files when directory or permission changes
+    LaunchedEffect(currentDirectory, permissionGranted) {
+        if (!permissionGranted) return@LaunchedEffect
+
+        isLoading = true
+        errorMessage = null
+        withContext(Dispatchers.IO) {
+            try {
+                val files = currentDirectory.listFiles()
+                if (files == null) {
+                    errorMessage = "Access Denied or Directory Unreadable"
+                    filesList = emptyList()
+                } else {
+                    filesList = files.map { file ->
+                        val childCount = if (file.isDirectory) (file.list()?.size ?: 0) else 0
+                        FileItem(
+                            name = file.name,
+                            path = file.absolutePath,
+                            isDirectory = file.isDirectory,
+                            size = if (file.isDirectory) 0L else file.length(),
+                            lastModified = file.lastModified(),
+                            childCount = childCount
+                        )
+                    }.sortedWith(
+                        compareBy<FileItem> { !it.isDirectory }
+                            .thenBy { it.name.lowercase() }
+                    )
+                }
+            } catch (e: SecurityException) {
+                errorMessage = "Access Denied: Restricted system directory"
+                filesList = emptyList()
+            } catch (e: Exception) {
+                errorMessage = e.message ?: "An unknown error occurred"
+                filesList = emptyList()
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            if (permissionGranted) {
+                BreadcrumbsBar(
+                    currentDir = currentDirectory,
+                    onNavigate = { currentDirectory = it }
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f)
+            ) {
+                if (!permissionGranted) {
+                    PermissionRequestView(onRequestPermission = onRequestPermission)
+                } else if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else if (errorMessage != null) {
+                    ErrorView(
+                        message = errorMessage ?: "",
+                        onBackToHome = { currentDirectory = File("/storage/emulated/0") }
+                    )
+                } else if (filesList.isEmpty()) {
+                    EmptyDirectoryView(
+                        onBack = {
+                            val parent = currentDirectory.parentFile
+                            if (parent != null) currentDirectory = parent
+                        },
+                        showBackButton = !isHome
+                    )
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(bottom = 16.dp)
+                    ) {
+                        items(filesList) { fileItem ->
+                            FileRowItem(
+                                item = fileItem,
+                                onClick = {
+                                    if (fileItem.isDirectory) {
+                                        currentDirectory = File(fileItem.path)
+                                    } else {
+                                        openFileWithOS(context, File(fileItem.path))
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

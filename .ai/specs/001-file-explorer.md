@@ -46,10 +46,16 @@
   * Mock directory listing flow to test directory navigation UI.
 
 ## 📝 Expected Code Changes
-* [build.gradle.kts](file:///Users/personal/AndroidStudioProjects/TagStash/app/build.gradle.kts) & [libs.versions.toml](file:///Users/personal/AndroidStudioProjects/TagStash/gradle/libs.versions.toml): Add Compose dependencies, Activity Compose, and navigation if needed.
-* [AndroidManifest.xml](file:///Users/personal/AndroidStudioProjects/TagStash/app/src/main/AndroidManifest.xml): Declare `MANAGE_EXTERNAL_STORAGE` and `FileProvider`.
-* [file_paths.xml](file:///Users/personal/AndroidStudioProjects/TagStash/app/src/main/res/xml/file_paths.xml): Configure shared external paths.
-* [MainActivity.kt](file:///Users/personal/AndroidStudioProjects/TagStash/app/src/main/java/com/anshuman/tagstash/MainActivity.kt): Set up the main application UI, permissions, and directory navigation state.
+* [build.gradle.kts](file:///Users/personal/AndroidStudioProjects/TagStash/app/build.gradle.kts) & [libs.versions.toml](file:///Users/personal/AndroidStudioProjects/TagStash/gradle/libs.versions.toml): Add Compose dependencies.
+* [AndroidManifest.xml](file:///Users/personal/AndroidStudioProjects/TagStash/app/src/main/AndroidManifest.xml): Declare permissions, activity, and `FileProvider`.
+* [file_paths.xml](file:///Users/personal/AndroidStudioProjects/TagStash/app/src/main/res/xml/file_paths.xml): Configure shared paths.
+* [themes.xml](file:///Users/personal/AndroidStudioProjects/TagStash/app/src/main/res/values/themes.xml): Change parent theme.
+* [MainActivity.kt](file:///Users/personal/AndroidStudioProjects/TagStash/app/src/main/java/com/anshuman/tagstash/MainActivity.kt): Set up content and permissions.
+* [FileItem.kt](file:///Users/personal/AndroidStudioProjects/TagStash/app/src/main/java/com/anshuman/tagstash/data/model/FileItem.kt): Data model representing file attributes.
+* [FileHelper.kt](file:///Users/personal/AndroidStudioProjects/TagStash/app/src/main/java/com/anshuman/tagstash/data/utils/FileHelper.kt): File logic and OS viewing intents.
+* [Theme.kt](file:///Users/personal/AndroidStudioProjects/TagStash/app/src/main/java/com/anshuman/tagstash/ui/theme/Theme.kt): Custom Compose theme.
+* Components under [components/](file:///Users/personal/AndroidStudioProjects/TagStash/app/src/main/java/com/anshuman/tagstash/ui/components/): UI subcomponents for Breadcrumbs, File items, and empty/error states.
+* Screen under [MainScreen.kt](file:///Users/personal/AndroidStudioProjects/TagStash/app/src/main/java/com/anshuman/tagstash/ui/screens/MainScreen.kt): Screen holding core navigation flow.
 
 ---
 
