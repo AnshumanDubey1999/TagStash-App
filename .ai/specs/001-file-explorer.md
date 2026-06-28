@@ -1,6 +1,6 @@
 # Spec 001: File Explorer
 
-- **Status**: IN_PROGRESS
+- **Status**: DONE
 - **Date**: 2026-06-27
 
 ---
