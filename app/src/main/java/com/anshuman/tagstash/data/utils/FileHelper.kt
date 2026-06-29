@@ -16,9 +16,8 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
-fun buildBreadcrumbs(currentDir: File): List<Pair<String, File>> {
-    val homePath = "/storage/emulated/0"
-    val homeDir = File(homePath)
+fun buildBreadcrumbs(currentDir: File, homeDir: File = File("/storage/emulated/0")): List<Pair<String, File>> {
+    val homePath = homeDir.absolutePath
     
     val list = mutableListOf<Pair<String, File>>()
     list.add(Pair("Home", homeDir))

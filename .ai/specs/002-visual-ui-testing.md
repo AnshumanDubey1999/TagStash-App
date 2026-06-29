@@ -1,6 +1,6 @@
 # Spec 002: UI & Screenshot Testing
 
-- **Status**: TODO
+- **Status**: IN_PROGRESS
 - **Date**: 2026-06-28
 
 ---
@@ -14,6 +14,7 @@
   * **Navigation Interaction**: Test that clicking folders correctly updates the current path and that hardware back triggers go back up.
   * **Empty Directory State**: Verify the empty illustration and visual back button state.
   * **Error State**: Verify restricted directory error view rendering.
+* **Test Data Folder**: Use the local resources directory `app/src/test/resources/testData/` as the simulated home directory root during test execution, validating the UI rendering against actual committed local files.
 
 ## 🎨 UI/UX Verification (Visual Regression)
 * Generate baseline screenshots for core screens and views.
@@ -46,4 +47,4 @@
 
 ## ❓ Open Questions & Assumptions (Resolved)
 1. **Roborazzi vs. Instrumented**: Resolved. Roborazzi (local JVM screenshot testing via Robolectric) is preferred because it runs fast without boot latency.
-2. **Mocking Files**: Resolved. We will mock directory listings at the data/view level rather than relying on temporary physical folders on disk during UI tests.
+2. **Mocking Files**: Resolved. Instead of mocking synthetic file lists or using empty temporary folders, the UI tests will load and execute against the real directory `app/src/test/resources/testData/` on the host machine.

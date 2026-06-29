@@ -27,9 +27,10 @@ import java.io.File
 fun BreadcrumbsBar(
     currentDir: File,
     onNavigate: (File) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    homeDir: File = File("/storage/emulated/0")
 ) {
-    val breadcrumbs = remember(currentDir) { buildBreadcrumbs(currentDir) }
+    val breadcrumbs = remember(currentDir, homeDir) { buildBreadcrumbs(currentDir, homeDir) }
 
     Card(
         modifier = modifier.fillMaxWidth(),

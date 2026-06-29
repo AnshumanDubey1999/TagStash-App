@@ -28,19 +28,21 @@ import java.io.File
 @Composable
 fun MainScreen(
     permissionGranted: Boolean,
-    onRequestPermission: () -> Unit
+    onRequestPermission: () -> Unit,
+    homeDirectory: File = File("/storage/emulated/0"),
+    initialDirectory: File = homeDirectory
 ) {
     val context = LocalContext.current
-    var currentDirectory by remember { mutableStateOf(File("/storage/emulated/0")) }
+    var currentDirectory by remember(initialDirectory) { mutableStateOf(initialDirectory) }
     var filesList by remember { mutableStateOf<List<FileItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     // Intercept hardware Back Button
-    val isHome = currentDirectory.absolutePath == "/storage/emulated/0"
+    val isHome = currentDirectory.absolutePath == homeDirectory.absolutePath
     BackHandler(enabled = permissionGranted && !isHome) {
         val parent = currentDirectory.parentFile
-        if (parent != null) {
+        if (parent != null && currentDirectory.absolutePath != homeDirectory.absolutePath) {
             currentDirectory = parent
         }
     }
@@ -96,7 +98,8 @@ fun MainScreen(
             if (permissionGranted) {
                 BreadcrumbsBar(
                     currentDir = currentDirectory,
-                    onNavigate = { currentDirectory = it }
+                    onNavigate = { currentDirectory = it },
+                    homeDir = homeDirectory
                 )
             }
             Box(
@@ -114,8 +117,8 @@ fun MainScreen(
                 } else if (errorMessage != null) {
                     ErrorView(
                         message = errorMessage ?: "",
-                        onBackToHome = { currentDirectory = File("/storage/emulated/0") }
-                    )
+                        onBackToHome = { currentDirectory = homeDirectory }
+                      )
                 } else if (filesList.isEmpty()) {
                     EmptyDirectoryView(
                         onBack = {
