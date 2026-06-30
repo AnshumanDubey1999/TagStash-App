@@ -69,4 +69,41 @@ class MainScreenTest {
         }
         composeTestRule.onRoot().captureRoboImage("screenshots/main_screen_images_subfolder.png")
     }
+
+    @Test
+    fun testImageViewerScreen() {
+        val pngsFolder = File(testDataDir, "images/pngs")
+        val file1 = File(pngsFolder, "1.png")
+
+        composeTestRule.setContent {
+            TagStashTheme {
+                ImageViewerScreen(
+                    file = file1,
+                    onClose = {},
+                    onNavigateToImage = {}
+                )
+            }
+        }
+        composeTestRule.onRoot().captureRoboImage("screenshots/image_viewer_screen.png")
+    }
+
+    @Test
+    fun testImageViewerScreenWithHeader() {
+        val pngsFolder = File(testDataDir, "images/pngs")
+        val file1 = File(pngsFolder, "1.png")
+
+        composeTestRule.setContent {
+            TagStashTheme {
+                ImageViewerScreen(
+                    file = file1,
+                    onClose = {},
+                    onNavigateToImage = {}
+                )
+            }
+        }
+        
+        // Click on the center to toggle header visibility
+        composeTestRule.onRoot().performClick()
+        composeTestRule.onRoot().captureRoboImage("screenshots/image_viewer_screen_with_header.png")
+    }
 }

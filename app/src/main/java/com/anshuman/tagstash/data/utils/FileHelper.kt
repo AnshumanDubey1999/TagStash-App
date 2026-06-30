@@ -1,5 +1,6 @@
 package com.anshuman.tagstash.data.utils
 
+import android.graphics.BitmapFactory
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -124,4 +125,21 @@ fun openFileWithOS(context: Context, file: File) {
 fun getMimeType(file: File): String {
     val ext = file.extension.lowercase()
     return MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
+}
+
+data class ImageDimensions(val width: Int, val height: Int)
+
+fun getSiblingImages(file: File): List<File> {
+    val parent = file.parentFile ?: return listOf(file)
+    val siblings = parent.listFiles() ?: return listOf(file)
+    return siblings.filter { it.isFile && isImage(it.name) }
+        .sortedWith(compareBy { it.name.lowercase() })
+}
+
+fun getImageDimensions(file: File): ImageDimensions {
+    val options = BitmapFactory.Options().apply {
+        inJustDecodeBounds = true
+    }
+    BitmapFactory.decodeFile(file.absolutePath, options)
+    return ImageDimensions(options.outWidth, options.outHeight)
 }

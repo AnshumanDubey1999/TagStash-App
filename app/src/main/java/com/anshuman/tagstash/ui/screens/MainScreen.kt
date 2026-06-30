@@ -15,6 +15,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.anshuman.tagstash.data.model.FileItem
 import com.anshuman.tagstash.data.utils.openFileWithOS
+import com.anshuman.tagstash.data.utils.isImage
 import com.anshuman.tagstash.ui.components.BreadcrumbsBar
 import com.anshuman.tagstash.ui.components.EmptyDirectoryView
 import com.anshuman.tagstash.ui.components.ErrorView
@@ -37,6 +38,7 @@ fun MainScreen(
     var filesList by remember { mutableStateOf<List<FileItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var activeImageViewerFile by remember { mutableStateOf<File?>(null) }
 
     // Intercept hardware Back Button
     val isHome = currentDirectory.absolutePath == homeDirectory.absolutePath
@@ -139,7 +141,12 @@ fun MainScreen(
                                     if (fileItem.isDirectory) {
                                         currentDirectory = File(fileItem.path)
                                     } else {
-                                        openFileWithOS(context, File(fileItem.path))
+                                        val targetFile = File(fileItem.path)
+                                        if (isImage(targetFile.name)) {
+                                            activeImageViewerFile = targetFile
+                                        } else {
+                                            openFileWithOS(context, targetFile)
+                                        }
                                     }
                                 }
                             )
@@ -148,5 +155,13 @@ fun MainScreen(
                 }
             }
         }
+    }
+
+    if (activeImageViewerFile != null) {
+        ImageViewerScreen(
+            file = activeImageViewerFile!!,
+            onClose = { activeImageViewerFile = null },
+            onNavigateToImage = { activeImageViewerFile = it }
+        )
     }
 }

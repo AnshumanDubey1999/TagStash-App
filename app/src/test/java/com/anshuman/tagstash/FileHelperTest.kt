@@ -4,8 +4,13 @@ import com.anshuman.tagstash.data.model.FileItem
 import com.anshuman.tagstash.data.utils.*
 import org.junit.Assert.*
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import java.io.File
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33])
 class FileHelperTest {
 
     @Test
@@ -87,5 +92,39 @@ class FileHelperTest {
         assertTrue(isDocument("notes.txt"))
         assertTrue(isDocument("data.json"))
         assertFalse(isDocument("script.sh"))
+    }
+
+    @Test
+    fun testGetSiblingImages() {
+        val testDataDir = if (File("src/test/resources/testData").exists()) {
+            File("src/test/resources/testData")
+        } else {
+            File("app/src/test/resources/testData")
+        }
+        val pngsFolder = File(testDataDir, "images/pngs")
+        val file1 = File(pngsFolder, "1.png")
+        
+        val siblings = getSiblingImages(file1)
+        
+        assertEquals(4, siblings.size)
+        assertEquals("1.png", siblings[0].name)
+        assertEquals("2.png", siblings[1].name)
+        assertEquals("3.png", siblings[2].name)
+        assertEquals("4.png", siblings[3].name)
+    }
+
+    @Test
+    fun testGetImageDimensions() {
+        val testDataDir = if (File("src/test/resources/testData").exists()) {
+            File("src/test/resources/testData")
+        } else {
+            File("app/src/test/resources/testData")
+        }
+        val pngsFolder = File(testDataDir, "images/pngs")
+        val file1 = File(pngsFolder, "1.png")
+        
+        val dims = getImageDimensions(file1)
+        assertTrue(dims.width > 0)
+        assertTrue(dims.height > 0)
     }
 }
