@@ -72,6 +72,56 @@ fun MediaPlayerScreen(
     // Intercept back key
     BackHandler(onBack = onClose)
 
+    // Singleton ExoPlayer instance for this screen
+    val exoPlayer = remember {
+        ExoPlayer.Builder(context).build().apply {
+            playWhenReady = true
+            volume = 1f
+        }
+    }
+
+    DisposableEffect(exoPlayer) {
+        onDispose {
+            exoPlayer.release()
+        }
+    }
+
+    // Sync globalLoopEnabled repeatMode
+    LaunchedEffect(globalLoopEnabled, exoPlayer) {
+        exoPlayer.repeatMode = if (globalLoopEnabled) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+    }
+
+    // Load / Stop Media on file changes
+    LaunchedEffect(file, exoPlayer) {
+        if (isImage(file.name)) {
+            exoPlayer.stop()
+            exoPlayer.clearMediaItems()
+        } else if (isVideo(file.name)) {
+            exoPlayer.stop()
+            exoPlayer.clearMediaItems()
+            exoPlayer.setMediaItem(MediaItem.fromUri(Uri.fromFile(file)))
+            exoPlayer.prepare()
+            exoPlayer.play()
+        }
+    }
+
+    // Auto-navigation state completion listener
+    DisposableEffect(exoPlayer, currentIndex, siblingMedia, globalLoopEnabled) {
+        val listener = object : Player.Listener {
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_ENDED && !globalLoopEnabled) {
+                    if (currentIndex < siblingMedia.size - 1) {
+                        onNavigateToMedia(siblingMedia[currentIndex + 1])
+                    }
+                }
+            }
+        }
+        exoPlayer.addListener(listener)
+        onDispose {
+            exoPlayer.removeListener(listener)
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -163,43 +213,25 @@ fun MediaPlayerScreen(
             // RENDER VIDEO VIEW (ExoPlayer)
             var currentPosition by remember(file) { mutableStateOf(0L) }
             var duration by remember(file) { mutableStateOf(0L) }
-            var isPlaying by remember(file) { mutableStateOf(true) }
-            var isMuted by remember(file) { mutableStateOf(false) }
+            var isPlaying by remember(file) { mutableStateOf(exoPlayer.isPlaying) }
+            var isMuted by remember(file) { mutableStateOf(exoPlayer.volume == 0f) }
 
-            val exoPlayer = remember(file) {
-                ExoPlayer.Builder(context).build().apply {
-                    playWhenReady = true
-                    volume = 1f
-                    repeatMode = if (globalLoopEnabled) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
-                    setMediaItem(MediaItem.fromUri(Uri.fromFile(file)))
-                    prepare()
-                }
-            }
-
-            // Sync globalLoopEnabled with player repeatMode
-            LaunchedEffect(globalLoopEnabled, exoPlayer) {
-                exoPlayer.repeatMode = if (globalLoopEnabled) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
-            }
-
-            // Playback state listener
-            DisposableEffect(exoPlayer) {
+            // Sync Compose states to Player states
+            DisposableEffect(exoPlayer, file) {
                 val listener = object : Player.Listener {
-                    override fun onPlaybackStateChanged(playbackState: Int) {
-                        if (playbackState == Player.STATE_ENDED && !globalLoopEnabled) {
-                            if (currentIndex < siblingMedia.size - 1) {
-                                onNavigateToMedia(siblingMedia[currentIndex + 1])
-                            }
-                        }
-                    }
-
                     override fun onIsPlayingChanged(playing: Boolean) {
                         isPlaying = playing
                     }
+
+                    override fun onVolumeChanged(volume: Float) {
+                        isMuted = volume == 0f
+                    }
                 }
                 exoPlayer.addListener(listener)
+                isPlaying = exoPlayer.isPlaying
+                isMuted = exoPlayer.volume == 0f
                 onDispose {
                     exoPlayer.removeListener(listener)
-                    exoPlayer.release()
                 }
             }
 
