@@ -1,6 +1,6 @@
 # Spec 004: In-App Video & Combined Media Player
 
-- **Status**: TODO
+- **Status**: IN_PROGRESS
 - **Date**: 2026-06-30
 
 ---
