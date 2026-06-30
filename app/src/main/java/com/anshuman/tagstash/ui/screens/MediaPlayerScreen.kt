@@ -122,6 +122,45 @@ fun MediaPlayerScreen(
         }
     }
 
+    var currentPosition by remember(file) { mutableStateOf(0L) }
+    var duration by remember(file) { mutableStateOf(0L) }
+    var isPlaying by remember(file) { mutableStateOf(exoPlayer.isPlaying) }
+    var isMuted by remember(file) { mutableStateOf(exoPlayer.volume == 0f) }
+
+    // Sync Compose states to Player states
+    DisposableEffect(exoPlayer, file) {
+        val listener = object : Player.Listener {
+            override fun onIsPlayingChanged(playing: Boolean) {
+                if (isVideo(file.name)) {
+                    isPlaying = playing
+                }
+            }
+
+            override fun onVolumeChanged(volume: Float) {
+                if (isVideo(file.name)) {
+                    isMuted = volume == 0f
+                }
+            }
+        }
+        exoPlayer.addListener(listener)
+        isPlaying = exoPlayer.isPlaying
+        isMuted = exoPlayer.volume == 0f
+        onDispose {
+            exoPlayer.removeListener(listener)
+        }
+    }
+
+    // Timeline position polling
+    LaunchedEffect(exoPlayer, isPlaying, file) {
+        if (isVideo(file.name)) {
+            while (isPlaying) {
+                currentPosition = exoPlayer.currentPosition
+                duration = exoPlayer.duration.coerceAtLeast(0L)
+                delay(200)
+            }
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -211,169 +250,19 @@ fun MediaPlayerScreen(
             }
         } else if (isVideo(file.name)) {
             // RENDER VIDEO VIEW (ExoPlayer)
-            var currentPosition by remember(file) { mutableStateOf(0L) }
-            var duration by remember(file) { mutableStateOf(0L) }
-            var isPlaying by remember(file) { mutableStateOf(exoPlayer.isPlaying) }
-            var isMuted by remember(file) { mutableStateOf(exoPlayer.volume == 0f) }
-
-            // Sync Compose states to Player states
-            DisposableEffect(exoPlayer, file) {
-                val listener = object : Player.Listener {
-                    override fun onIsPlayingChanged(playing: Boolean) {
-                        isPlaying = playing
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        player = exoPlayer
+                        useController = false
+                        resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
                     }
-
-                    override fun onVolumeChanged(volume: Float) {
-                        isMuted = volume == 0f
-                    }
-                }
-                exoPlayer.addListener(listener)
-                isPlaying = exoPlayer.isPlaying
-                isMuted = exoPlayer.volume == 0f
-                onDispose {
-                    exoPlayer.removeListener(listener)
-                }
-            }
-
-            // Timeline position polling
-            LaunchedEffect(exoPlayer, isPlaying) {
-                while (isPlaying) {
-                    currentPosition = exoPlayer.currentPosition
-                    duration = exoPlayer.duration.coerceAtLeast(0L)
-                    delay(200)
-                }
-            }
-
-            Box(modifier = Modifier.fillMaxSize()) {
-                AndroidView(
-                    factory = { ctx ->
-                        PlayerView(ctx).apply {
-                            player = exoPlayer
-                            useController = false
-                            resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
-                        }
-                    },
-                    modifier = Modifier.fillMaxSize()
-                )
-
-                // Video Control Footer Overlay
-                AnimatedVisibility(
-                    visible = showOverlays,
-                    enter = slideInVertically { it } + fadeIn(),
-                    exit = slideOutVertically { it } + fadeOut(),
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .navigationBarsPadding()
-                ) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(0.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color.Black.copy(alpha = 0.75f)
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp)
-                        ) {
-                            // Timeline Slider Row
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = formatTime(currentPosition),
-                                    color = Color.White,
-                                    fontSize = 12.sp
-                                )
-
-                                Slider(
-                                    value = currentPosition.toFloat(),
-                                    onValueChange = {
-                                        currentPosition = it.toLong()
-                                    },
-                                    onValueChangeFinished = {
-                                        exoPlayer.seekTo(currentPosition)
-                                    },
-                                    valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .padding(horizontal = 8.dp),
-                                    colors = SliderDefaults.colors(
-                                        thumbColor = MaterialTheme.colorScheme.primary,
-                                        activeTrackColor = MaterialTheme.colorScheme.primary,
-                                        inactiveTrackColor = Color.White.copy(alpha = 0.3f)
-                                    )
-                                )
-
-                                Text(
-                                    text = formatTime(duration),
-                                    color = Color.White,
-                                    fontSize = 12.sp
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Controls Row
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceEvenly,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Mute Button
-                                IconButton(onClick = {
-                                    isMuted = !isMuted
-                                    exoPlayer.volume = if (isMuted) 0f else 1f
-                                }) {
-                                    Icon(
-                                        imageVector = if (isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
-                                        contentDescription = "Mute",
-                                        tint = Color.White
-                                    )
-                                }
-
-                                // Play / Pause Button
-                                IconButton(
-                                    onClick = {
-                                        if (isPlaying) exoPlayer.pause() else exoPlayer.play()
-                                    }
-                                ) {
-                                    Icon(
-                                        imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                        contentDescription = "Play/Pause",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(32.dp)
-                                    )
-                                }
-
-                                // Fast Forward (+10s) Button
-                                IconButton(onClick = {
-                                    val newPos = (exoPlayer.currentPosition + 10000).coerceAtMost(exoPlayer.duration)
-                                    exoPlayer.seekTo(newPos)
-                                    currentPosition = newPos
-                                }) {
-                                    Icon(
-                                        imageVector = Icons.Default.FastForward,
-                                        contentDescription = "Fast Forward 10s",
-                                        tint = Color.White
-                                    )
-                                }
-
-                                // Global Loop Toggle Button
-                                IconButton(onClick = { onToggleGlobalLoop(!globalLoopEnabled) }) {
-                                    Icon(
-                                        imageVector = Icons.Default.Loop,
-                                        contentDescription = "Loop",
-                                        tint = if (globalLoopEnabled) MaterialTheme.colorScheme.primary else Color.White
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+                },
+                update = { view ->
+                    view.player = exoPlayer
+                },
+                modifier = Modifier.fillMaxSize()
+            )
         }
 
         // Invisible Interaction Tap Overlay: Left 30%, Center 40%, Right 30%
@@ -473,6 +362,126 @@ fun MediaPlayerScreen(
                             color = Color.White.copy(alpha = 0.6f),
                             fontSize = 12.sp
                         )
+                    }
+                }
+            }
+        }
+
+        // Bottom Video Control Footer Overlay (only visible for videos, drawn on top of the tap zones)
+        if (isVideo(file.name)) {
+            AnimatedVisibility(
+                visible = showOverlays,
+                enter = slideInVertically { it } + fadeIn(),
+                exit = slideOutVertically { it } + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+            ) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(0.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Color.Black.copy(alpha = 0.75f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        // Timeline Slider Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = formatTime(currentPosition),
+                                color = Color.White,
+                                fontSize = 12.sp
+                            )
+
+                            Slider(
+                                value = currentPosition.toFloat(),
+                                onValueChange = {
+                                    currentPosition = it.toLong()
+                                },
+                                onValueChangeFinished = {
+                                    exoPlayer.seekTo(currentPosition)
+                                },
+                                valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(horizontal = 8.dp),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = MaterialTheme.colorScheme.primary,
+                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                    inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                                )
+                            )
+
+                            Text(
+                                text = formatTime(duration),
+                                color = Color.White,
+                                fontSize = 12.sp
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Controls Row
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Mute Button
+                            IconButton(onClick = {
+                                isMuted = !isMuted
+                                exoPlayer.volume = if (isMuted) 0f else 1f
+                            }) {
+                                Icon(
+                                    imageVector = if (isMuted) Icons.AutoMirrored.Filled.VolumeOff else Icons.AutoMirrored.Filled.VolumeUp,
+                                    contentDescription = "Mute",
+                                    tint = Color.White
+                                )
+                            }
+
+                            // Play / Pause Button
+                            IconButton(
+                                onClick = {
+                                    if (isPlaying) exoPlayer.pause() else exoPlayer.play()
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                    contentDescription = "Play/Pause",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+
+                            // Fast Forward (+10s) Button
+                            IconButton(onClick = {
+                                val newPos = (exoPlayer.currentPosition + 10000).coerceAtMost(exoPlayer.duration)
+                                exoPlayer.seekTo(newPos)
+                                currentPosition = newPos
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Default.FastForward,
+                                    contentDescription = "Fast Forward 10s",
+                                    tint = Color.White
+                                )
+                            }
+
+                            // Global Loop Toggle Button
+                            IconButton(onClick = { onToggleGlobalLoop(!globalLoopEnabled) }) {
+                                Icon(
+                                    imageVector = Icons.Default.Loop,
+                                    contentDescription = "Loop",
+                                    tint = if (globalLoopEnabled) MaterialTheme.colorScheme.primary else Color.White
+                                )
+                            }
+                        }
                     }
                 }
             }
