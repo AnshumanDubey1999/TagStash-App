@@ -1,6 +1,6 @@
 # Spec 002: UI & Screenshot Testing
 
-- **Status**: IN_PROGRESS
+- **Status**: DONE
 - **Date**: 2026-06-28
 
 ---
