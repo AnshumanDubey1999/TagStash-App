@@ -1,6 +1,6 @@
 # Spec 003: In-App Image Viewer
 
-- **Status**: IN_PROGRESS
+- **Status**: DONE
 - **Date**: 2026-06-30
 
 ---
