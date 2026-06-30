@@ -60,6 +60,7 @@ dependencies {
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.activity.compose)
     implementation(libs.coil.compose)
+    implementation(libs.coil.gif)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     testImplementation(libs.junit)

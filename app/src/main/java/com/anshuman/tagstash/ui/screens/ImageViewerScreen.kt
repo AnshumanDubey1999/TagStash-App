@@ -25,6 +25,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import android.os.Build
+import coil.ImageLoader
+import coil.decode.ImageDecoderDecoder
 import coil.compose.SubcomposeAsyncImage
 import com.anshuman.tagstash.data.utils.ImageDimensions
 import com.anshuman.tagstash.data.utils.formatFileSize
@@ -41,6 +45,17 @@ fun ImageViewerScreen(
     onClose: () -> Unit,
     onNavigateToImage: (File) -> Unit
 ) {
+    val context = LocalContext.current
+    val imageLoader = remember(context) {
+        ImageLoader.Builder(context)
+            .components {
+                if (Build.VERSION.SDK_INT >= 28) {
+                    add(ImageDecoderDecoder.Factory())
+                }
+            }
+            .build()
+    }
+
     var showHeader by remember { mutableStateOf(false) }
     var imageDimensions by remember(file) { mutableStateOf<ImageDimensions?>(null) }
 
@@ -79,6 +94,7 @@ fun ImageViewerScreen(
 
                 SubcomposeAsyncImage(
                     model = file,
+                    imageLoader = imageLoader,
                     contentDescription = null,
                     contentScale = if (isSmaller) ContentScale.None else ContentScale.Fit,
                     modifier = if (isSmaller) {
