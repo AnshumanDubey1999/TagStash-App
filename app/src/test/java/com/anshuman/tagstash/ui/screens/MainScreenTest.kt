@@ -71,16 +71,18 @@ class MainScreenTest {
     }
 
     @Test
-    fun testImageViewerScreen() {
+    fun testMediaPlayerScreenWithImage() {
         val pngsFolder = File(testDataDir, "images/pngs")
         val file1 = File(pngsFolder, "1.png")
 
         composeTestRule.setContent {
             TagStashTheme {
-                ImageViewerScreen(
+                MediaPlayerScreen(
                     file = file1,
+                    globalLoopEnabled = true,
+                    onToggleGlobalLoop = {},
                     onClose = {},
-                    onNavigateToImage = {}
+                    onNavigateToMedia = {}
                 )
             }
         }
@@ -88,16 +90,18 @@ class MainScreenTest {
     }
 
     @Test
-    fun testImageViewerScreenWithHeader() {
+    fun testMediaPlayerScreenWithImageAndHeader() {
         val pngsFolder = File(testDataDir, "images/pngs")
         val file1 = File(pngsFolder, "1.png")
 
         composeTestRule.setContent {
             TagStashTheme {
-                ImageViewerScreen(
+                MediaPlayerScreen(
                     file = file1,
+                    globalLoopEnabled = true,
+                    onToggleGlobalLoop = {},
                     onClose = {},
-                    onNavigateToImage = {}
+                    onNavigateToMedia = {}
                 )
             }
         }
@@ -105,5 +109,46 @@ class MainScreenTest {
         // Click on the center to toggle header visibility
         composeTestRule.onRoot().performClick()
         composeTestRule.onRoot().captureRoboImage("screenshots/image_viewer_screen_with_header.png")
+    }
+
+    @Test
+    fun testVideoPlayerScreen() {
+        val videosFolder = File(testDataDir, "videos")
+        val file1 = File(videosFolder, "1.mp4")
+
+        composeTestRule.setContent {
+            TagStashTheme {
+                MediaPlayerScreen(
+                    file = file1,
+                    globalLoopEnabled = true,
+                    onToggleGlobalLoop = {},
+                    onClose = {},
+                    onNavigateToMedia = {}
+                )
+            }
+        }
+        composeTestRule.onRoot().captureRoboImage("screenshots/video_player_screen.png")
+    }
+
+    @Test
+    fun testVideoPlayerScreenWithControls() {
+        val videosFolder = File(testDataDir, "videos")
+        val file1 = File(videosFolder, "1.mp4")
+
+        composeTestRule.setContent {
+            TagStashTheme {
+                MediaPlayerScreen(
+                    file = file1,
+                    globalLoopEnabled = true,
+                    onToggleGlobalLoop = {},
+                    onClose = {},
+                    onNavigateToMedia = {}
+                )
+            }
+        }
+        
+        // Click in the center to toggle controls visibility
+        composeTestRule.onRoot().performClick()
+        composeTestRule.onRoot().captureRoboImage("screenshots/video_player_screen_with_controls.png")
     }
 }

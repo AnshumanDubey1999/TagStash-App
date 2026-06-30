@@ -129,10 +129,10 @@ fun getMimeType(file: File): String {
 
 data class ImageDimensions(val width: Int, val height: Int)
 
-fun getSiblingImages(file: File): List<File> {
+fun getSiblingMedia(file: File): List<File> {
     val parent = file.parentFile ?: return listOf(file)
     val siblings = parent.listFiles() ?: return listOf(file)
-    return siblings.filter { it.isFile && isImage(it.name) }
+    return siblings.filter { it.isFile && (isImage(it.name) || isVideo(it.name)) }
         .sortedWith(compareBy { it.name.lowercase() })
 }
 

@@ -95,7 +95,7 @@ class FileHelperTest {
     }
 
     @Test
-    fun testGetSiblingImages() {
+    fun testGetSiblingMedia() {
         val testDataDir = if (File("src/test/resources/testData").exists()) {
             File("src/test/resources/testData")
         } else {
@@ -104,13 +104,27 @@ class FileHelperTest {
         val pngsFolder = File(testDataDir, "images/pngs")
         val file1 = File(pngsFolder, "1.png")
         
-        val siblings = getSiblingImages(file1)
+        val siblings = getSiblingMedia(file1)
         
         assertEquals(4, siblings.size)
         assertEquals("1.png", siblings[0].name)
         assertEquals("2.png", siblings[1].name)
         assertEquals("3.png", siblings[2].name)
         assertEquals("4.png", siblings[3].name)
+
+        // Verify combined image and video list under videos directory
+        val videosFolder = File(testDataDir, "videos")
+        val videoFile = File(videosFolder, "1.mp4")
+        val mediaSiblings = getSiblingMedia(videoFile)
+        
+        assertEquals(7, mediaSiblings.size)
+        assertEquals("1.mp4", mediaSiblings[0].name)
+        assertEquals("2.mp4", mediaSiblings[1].name)
+        assertEquals("2.png", mediaSiblings[2].name)
+        assertEquals("3.mp4", mediaSiblings[3].name)
+        assertEquals("3.webp", mediaSiblings[4].name)
+        assertEquals("4.gif", mediaSiblings[5].name)
+        assertEquals("4.mp4", mediaSiblings[6].name)
     }
 
     @Test
