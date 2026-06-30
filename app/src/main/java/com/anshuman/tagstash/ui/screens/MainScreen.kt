@@ -9,6 +9,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -26,6 +28,16 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
+val FileSaver = Saver<File, String>(
+    save = { it.absolutePath },
+    restore = { File(it) }
+)
+
+val NullableFileSaver = Saver<File?, String>(
+    save = { it?.absolutePath ?: "" },
+    restore = { if (it.isEmpty()) null else File(it) }
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
@@ -35,12 +47,12 @@ fun MainScreen(
     initialDirectory: File = homeDirectory
 ) {
     val context = LocalContext.current
-    var currentDirectory by remember(initialDirectory) { mutableStateOf(initialDirectory) }
+    var currentDirectory by rememberSaveable(initialDirectory, stateSaver = FileSaver) { mutableStateOf(initialDirectory) }
     var filesList by remember { mutableStateOf<List<FileItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var activeMediaPlayerFile by remember { mutableStateOf<File?>(null) }
-    var globalLoopEnabled by remember { mutableStateOf(true) }
+    var activeMediaPlayerFile by rememberSaveable(stateSaver = NullableFileSaver) { mutableStateOf<File?>(null) }
+    var globalLoopEnabled by rememberSaveable { mutableStateOf(true) }
 
     // Intercept hardware Back Button
     val isHome = currentDirectory.absolutePath == homeDirectory.absolutePath

@@ -20,6 +20,7 @@ import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -60,7 +61,7 @@ fun MediaPlayerScreen(
     onNavigateToMedia: (File) -> Unit
 ) {
     val context = LocalContext.current
-    var showOverlays by remember { mutableStateOf(false) }
+    var showOverlays by rememberSaveable { mutableStateOf(false) }
 
     // Sibling Media and Navigation Logic
     val siblingMedia = remember(file) { getSiblingMedia(file) }
@@ -71,6 +72,11 @@ fun MediaPlayerScreen(
 
     // Intercept back key
     BackHandler(onBack = onClose)
+
+    var currentPosition by rememberSaveable(file) { mutableStateOf(0L) }
+    var duration by rememberSaveable(file) { mutableStateOf(0L) }
+    var isPlaying by rememberSaveable(file) { mutableStateOf(true) }
+    var isMuted by rememberSaveable(file) { mutableStateOf(false) }
 
     // Singleton ExoPlayer instance for this screen
     val exoPlayer = remember {
@@ -101,7 +107,9 @@ fun MediaPlayerScreen(
             exoPlayer.clearMediaItems()
             exoPlayer.setMediaItem(MediaItem.fromUri(Uri.fromFile(file)))
             exoPlayer.prepare()
-            exoPlayer.play()
+            exoPlayer.seekTo(currentPosition)
+            exoPlayer.playWhenReady = isPlaying
+            exoPlayer.volume = if (isMuted) 0f else 1f
         }
     }
 
@@ -122,10 +130,6 @@ fun MediaPlayerScreen(
         }
     }
 
-    var currentPosition by remember(file) { mutableStateOf(0L) }
-    var duration by remember(file) { mutableStateOf(0L) }
-    var isPlaying by remember(file) { mutableStateOf(exoPlayer.isPlaying) }
-    var isMuted by remember(file) { mutableStateOf(exoPlayer.volume == 0f) }
 
     // Sync Compose states to Player states
     DisposableEffect(exoPlayer, file) {
