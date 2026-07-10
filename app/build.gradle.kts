@@ -13,8 +13,12 @@ android {
         applicationId = "com.anshuman.tagstash"
         minSdk = 33
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        
+        val appVersionCode = (project.findProperty("app.version.code") as? String)?.toInt() ?: 1
+        val appVersionName = (project.findProperty("app.version.name") as? String) ?: "0.1.0"
+        
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
