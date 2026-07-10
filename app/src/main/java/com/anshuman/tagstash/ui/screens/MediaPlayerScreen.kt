@@ -108,7 +108,8 @@ fun MediaPlayerScreen(
             exoPlayer.setMediaItem(MediaItem.fromUri(Uri.fromFile(file)))
             exoPlayer.prepare()
             exoPlayer.seekTo(currentPosition)
-            exoPlayer.playWhenReady = isPlaying
+            isPlaying = true
+            exoPlayer.playWhenReady = true
             exoPlayer.volume = if (isMuted) 0f else 1f
         }
     }
@@ -147,7 +148,6 @@ fun MediaPlayerScreen(
             }
         }
         exoPlayer.addListener(listener)
-        isPlaying = exoPlayer.isPlaying
         isMuted = exoPlayer.volume == 0f
         onDispose {
             exoPlayer.removeListener(listener)
