@@ -1,6 +1,6 @@
 # Spec 008: Automated Release Pipeline Workflow
 
-- **Status**: IN_PROGRESS
+- **Status**: DONE
 - **Date**: 2026-07-10
 
 ---
