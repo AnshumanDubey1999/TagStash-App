@@ -1,6 +1,6 @@
 # Spec 005: Configuration Change & State Persistence Support
 
-- **Status**: IN_PROGRESS
+- **Status**: DONE
 - **Date**: 2026-06-30
 
 ---
