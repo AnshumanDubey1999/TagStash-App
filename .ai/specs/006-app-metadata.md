@@ -1,6 +1,6 @@
 # Spec 006: App Icon, Versioning, and README Configuration
 
-- **Status**: IN_PROGRESS
+- **Status**: DONE
 - **Date**: 2026-07-10
 
 ---
