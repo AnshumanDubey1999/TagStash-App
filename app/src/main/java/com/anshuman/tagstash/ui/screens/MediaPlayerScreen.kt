@@ -35,6 +35,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -100,6 +103,23 @@ fun MediaPlayerScreen(
     DisposableEffect(exoPlayer) {
         onDispose {
             exoPlayer.release()
+        }
+    }
+
+    // Pause video when app goes to background
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, exoPlayer) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE) {
+                if (isVideo(file.name)) {
+                    exoPlayer.pause()
+                    isPlaying = false
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
         }
     }
 
@@ -341,6 +361,7 @@ fun MediaPlayerScreen(
                         },
                         update = { view ->
                             view.player = exoPlayer
+                            view.keepScreenOn = isPlaying
                         },
                         modifier = Modifier.fillMaxSize()
                     )
