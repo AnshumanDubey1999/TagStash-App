@@ -1,6 +1,9 @@
 package com.anshuman.tagstash.ui.screens
 
 import android.net.Uri
+import android.util.Log
+import android.view.LayoutInflater
+import com.anshuman.tagstash.R
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -82,6 +85,9 @@ fun MediaPlayerScreen(
     var duration by rememberSaveable(file) { mutableStateOf(0L) }
     var isPlaying by rememberSaveable(file) { mutableStateOf(true) }
     var isMuted by rememberSaveable(file) { mutableStateOf(false) }
+    var scale by remember(file) { mutableStateOf(1.0f) }
+    var offset by remember(file) { mutableStateOf(Offset.Zero) }
+    var videoDimensions by remember(file) { mutableStateOf<ImageDimensions?>(null) }
 
     // Singleton ExoPlayer instance for this screen
     val exoPlayer = remember {
@@ -151,8 +157,17 @@ fun MediaPlayerScreen(
                     isMuted = volume == 0f
                 }
             }
+
+            override fun onVideoSizeChanged(videoSize: androidx.media3.common.VideoSize) {
+                if (isVideo(file.name)) {
+                    videoDimensions = ImageDimensions(videoSize.width, videoSize.height)
+                }
+            }
         }
         exoPlayer.addListener(listener)
+        if (isVideo(file.name)) {
+            videoDimensions = ImageDimensions(exoPlayer.videoSize.width, exoPlayer.videoSize.height)
+        }
         isMuted = exoPlayer.volume == 0f
         onDispose {
             exoPlayer.removeListener(listener)
@@ -176,10 +191,7 @@ fun MediaPlayerScreen(
             .background(Color.Black)
     ) {
         if (isImage(file.name)) {
-            // RENDER IMAGE VIEW
             var imageDimensions by remember(file) { mutableStateOf<ImageDimensions?>(null) }
-            var scale by remember(file) { mutableStateOf(1.0f) }
-            var offset by remember(file) { mutableStateOf(Offset.Zero) }
 
             val imageLoader = remember(context) {
                 ImageLoader.Builder(context)
@@ -301,67 +313,87 @@ fun MediaPlayerScreen(
             }
         } else if (isVideo(file.name)) {
             // RENDER VIDEO VIEW (ExoPlayer)
-            AndroidView(
-                factory = { ctx ->
-                    PlayerView(ctx).apply {
-                        player = exoPlayer
-                        useController = false
-                        resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
-                    }
-                },
-                update = { view ->
-                    view.player = exoPlayer
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-        }
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val density = LocalDensity.current
+                val screenWidthPx = with(density) { maxWidth.toPx() }
+                val screenHeightPx = with(density) { maxHeight.toPx() }
+                val dims = videoDimensions
 
-        if (isVideo(file.name)) {
-            // Invisible Interaction Tap Overlay: Left 30%, Center 40%, Right 30%
-            Row(modifier = Modifier.fillMaxSize()) {
-                // Left Zone
+                // Scaled video container
                 Box(
                     modifier = Modifier
-                        .fillMaxHeight()
-                        .weight(0.3f)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            if (currentIndex > 0) {
-                                onNavigateToMedia(siblingMedia[currentIndex - 1])
-                            } else {
-                                showOverlays = !showOverlays
+                        .fillMaxSize()
+                        .graphicsLayer(
+                            scaleX = scale,
+                            scaleY = scale,
+                            translationX = offset.x,
+                            translationY = offset.y
+                        )
+                ) {
+                    AndroidView(
+                        factory = { ctx ->
+                            val view = LayoutInflater.from(ctx).inflate(R.layout.player_view_texture, null) as PlayerView
+                            view.apply {
+                                player = exoPlayer
+                                useController = false
+                                resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
                             }
-                        }
-                )
+                        },
+                        update = { view ->
+                            view.player = exoPlayer
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
 
-                // Center Zone
+                // Transparent Gesture Overlay Box
                 Box(
                     modifier = Modifier
-                        .fillMaxHeight()
-                        .weight(0.4f)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            showOverlays = !showOverlays
+                        .fillMaxSize()
+                        .pointerInput(file, screenWidthPx) {
+                            detectTapGestures(
+                                onTap = { position ->
+                                    if (scale == 1.0f) {
+                                        if (position.x < screenWidthPx * 0.3f) {
+                                            if (currentIndex > 0) {
+                                                onNavigateToMedia(siblingMedia[currentIndex - 1])
+                                            } else {
+                                                showOverlays = !showOverlays
+                                            }
+                                        } else if (position.x > screenWidthPx * 0.7f) {
+                                            if (currentIndex < siblingMedia.size - 1) {
+                                                onNavigateToMedia(siblingMedia[currentIndex + 1])
+                                            } else {
+                                                showOverlays = !showOverlays
+                                            }
+                                        } else {
+                                            showOverlays = !showOverlays
+                                        }
+                                    }
+                                },
+                                onDoubleTap = { position ->
+                                    if (scale == 1.0f) {
+                                        val isCenter = position.x in (screenWidthPx * 0.3f)..(screenWidthPx * 0.7f)
+                                        if (isCenter) {
+                                            scale = 2.0f
+                                        }
+                                    } else {
+                                        scale = 1.0f
+                                        offset = Offset.Zero
+                                    }
+                                }
+                            )
                         }
-                )
-
-                // Right Zone
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .weight(0.3f)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null
-                        ) {
-                            if (currentIndex < siblingMedia.size - 1) {
-                                onNavigateToMedia(siblingMedia[currentIndex + 1])
-                            } else {
-                                showOverlays = !showOverlays
+                        .pointerInput(file, dims, screenWidthPx, screenHeightPx) {
+                            detectTransformGestures { _, pan, zoom, _ ->
+                                val newScale = (scale * zoom).coerceIn(1.0f, 5.0f)
+                                val newOffset = if (newScale > 1.0f) {
+                                    offset + pan
+                                } else {
+                                    Offset.Zero
+                                }
+                                scale = newScale
+                                offset = clampOffset(newOffset, newScale, dims, screenWidthPx, screenHeightPx)
                             }
                         }
                 )
