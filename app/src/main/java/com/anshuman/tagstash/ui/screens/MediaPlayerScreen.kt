@@ -10,6 +10,8 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,6 +26,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -173,6 +178,9 @@ fun MediaPlayerScreen(
         if (isImage(file.name)) {
             // RENDER IMAGE VIEW
             var imageDimensions by remember(file) { mutableStateOf<ImageDimensions?>(null) }
+            var scale by remember(file) { mutableStateOf(1.0f) }
+            var offset by remember(file) { mutableStateOf(Offset.Zero) }
+
             val imageLoader = remember(context) {
                 ImageLoader.Builder(context)
                     .components {
@@ -193,25 +201,71 @@ fun MediaPlayerScreen(
                 val density = LocalDensity.current
                 val screenWidthPx = with(density) { maxWidth.toPx() }
                 val screenHeightPx = with(density) { maxHeight.toPx() }
-
                 val dims = imageDimensions
-                if (dims != null) {
-                    val isSmaller = dims.width < screenWidthPx && dims.height < screenHeightPx
 
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(file, screenWidthPx) {
+                            detectTapGestures(
+                                onTap = { position ->
+                                    if (scale == 1.0f) {
+                                        if (position.x < screenWidthPx * 0.3f) {
+                                            if (currentIndex > 0) {
+                                                onNavigateToMedia(siblingMedia[currentIndex - 1])
+                                            } else {
+                                                showOverlays = !showOverlays
+                                            }
+                                        } else if (position.x > screenWidthPx * 0.7f) {
+                                            if (currentIndex < siblingMedia.size - 1) {
+                                                onNavigateToMedia(siblingMedia[currentIndex + 1])
+                                            } else {
+                                                showOverlays = !showOverlays
+                                            }
+                                        } else {
+                                            showOverlays = !showOverlays
+                                        }
+                                    }
+                                },
+                                onDoubleTap = { position ->
+                                    if (scale == 1.0f) {
+                                        val isCenter = position.x in (screenWidthPx * 0.3f)..(screenWidthPx * 0.7f)
+                                        if (isCenter) {
+                                            scale = 2.0f
+                                        }
+                                    } else {
+                                        scale = 1.0f
+                                        offset = Offset.Zero
+                                    }
+                                }
+                            )
+                        }
+                        .pointerInput(file, dims, screenWidthPx, screenHeightPx) {
+                            detectTransformGestures { _, pan, zoom, _ ->
+                                val newScale = (scale * zoom).coerceIn(1.0f, 5.0f)
+                                val newOffset = if (newScale > 1.0f) {
+                                    offset + pan
+                                } else {
+                                    Offset.Zero
+                                }
+                                scale = newScale
+                                offset = clampOffset(newOffset, newScale, dims, screenWidthPx, screenHeightPx)
+                            }
+                        }
+                ) {
                     SubcomposeAsyncImage(
                         model = file,
                         imageLoader = imageLoader,
                         contentDescription = null,
-                        contentScale = if (isSmaller) ContentScale.None else ContentScale.Fit,
-                        modifier = if (isSmaller) {
-                            val dpWidth = with(density) { dims.width.toDp() }
-                            val dpHeight = with(density) { dims.height.toDp() }
-                            Modifier
-                                .align(Alignment.Center)
-                                .size(width = dpWidth, height = dpHeight)
-                        } else {
-                            Modifier.fillMaxSize()
-                        },
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer(
+                                scaleX = scale,
+                                scaleY = scale,
+                                translationX = offset.x,
+                                translationY = offset.y
+                            ),
                         loading = {
                             Box(
                                 modifier = Modifier.fillMaxSize(),
@@ -243,13 +297,6 @@ fun MediaPlayerScreen(
                             }
                         }
                     )
-                } else {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                    }
                 }
             }
         } else if (isVideo(file.name)) {
@@ -269,54 +316,56 @@ fun MediaPlayerScreen(
             )
         }
 
-        // Invisible Interaction Tap Overlay: Left 30%, Center 40%, Right 30%
-        Row(modifier = Modifier.fillMaxSize()) {
-            // Left Zone
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .weight(0.3f)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        if (currentIndex > 0) {
-                            onNavigateToMedia(siblingMedia[currentIndex - 1])
-                        } else {
+        if (isVideo(file.name)) {
+            // Invisible Interaction Tap Overlay: Left 30%, Center 40%, Right 30%
+            Row(modifier = Modifier.fillMaxSize()) {
+                // Left Zone
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .weight(0.3f)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            if (currentIndex > 0) {
+                                onNavigateToMedia(siblingMedia[currentIndex - 1])
+                            } else {
+                                showOverlays = !showOverlays
+                            }
+                        }
+                )
+
+                // Center Zone
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .weight(0.4f)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
                             showOverlays = !showOverlays
                         }
-                    }
-            )
+                )
 
-            // Center Zone
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .weight(0.4f)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        showOverlays = !showOverlays
-                    }
-            )
-
-            // Right Zone
-            Box(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .weight(0.3f)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null
-                    ) {
-                        if (currentIndex < siblingMedia.size - 1) {
-                            onNavigateToMedia(siblingMedia[currentIndex + 1])
-                        } else {
-                            showOverlays = !showOverlays
+                // Right Zone
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .weight(0.3f)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) {
+                            if (currentIndex < siblingMedia.size - 1) {
+                                onNavigateToMedia(siblingMedia[currentIndex + 1])
+                            } else {
+                                showOverlays = !showOverlays
+                            }
                         }
-                    }
-            )
+                )
+            }
         }
 
         // Top Details Header Overlay
@@ -498,4 +547,38 @@ private fun formatTime(ms: Long): String {
     val seconds = totalSeconds % 60
     val minutes = totalSeconds / 60
     return String.format("%02d:%02d", minutes, seconds)
+}
+
+internal fun clampOffset(
+    offset: Offset,
+    scale: Float,
+    dims: ImageDimensions?,
+    screenWidth: Float,
+    screenHeight: Float
+): Offset {
+    if (scale <= 1.0f || dims == null) return Offset.Zero
+
+    val imageWidth = dims.width.toFloat()
+    val imageHeight = dims.height.toFloat()
+    if (imageWidth <= 0f || imageHeight <= 0f) return Offset.Zero
+
+    val imageRatio = imageWidth / imageHeight
+    val screenRatio = screenWidth / screenHeight
+
+    val (dispWidth, dispHeight) = if (imageRatio > screenRatio) {
+        screenWidth to (screenWidth / imageRatio)
+    } else {
+        (screenHeight * imageRatio) to screenHeight
+    }
+
+    val scaledWidth = dispWidth * scale
+    val scaledHeight = dispHeight * scale
+
+    val maxX = if (scaledWidth > screenWidth) (scaledWidth - screenWidth) / 2f else 0f
+    val maxY = if (scaledHeight > screenHeight) (scaledHeight - screenHeight) / 2f else 0f
+
+    return Offset(
+        x = offset.x.coerceIn(-maxX, maxX),
+        y = offset.y.coerceIn(-maxY, maxY)
+    )
 }
