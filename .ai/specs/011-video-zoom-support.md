@@ -1,6 +1,6 @@
 # Spec 011: Video Zoom Support
 
-- **Status**: IN_PROGRESS
+- **Status**: DONE
 - **Date**: 2026-07-11
 
 ---
