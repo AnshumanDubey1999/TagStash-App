@@ -1,6 +1,6 @@
 # Spec 012: Keep Screen Awake and Pause on Background
 
-- **Status**: IN_PROGRESS
+- **Status**: DONE
 - **Date**: 2026-07-11
 
 ---
