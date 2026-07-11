@@ -1,6 +1,6 @@
 # Spec 010: Image Rendering and Zoom Support
 
-- **Status**: IN_PROGRESS
+- **Status**: DONE
 - **Date**: 2026-07-11
 
 ---
