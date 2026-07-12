@@ -1,6 +1,6 @@
 # Spec 014: Pull To Refresh support
 
-- **Status**: IN_PROGRESS
+- **Status**: DONE
 - **Date**: 2026-07-12
 
 ---
