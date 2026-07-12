@@ -4,6 +4,9 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -53,6 +56,8 @@ fun MainScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var activeMediaPlayerFile by rememberSaveable(stateSaver = NullableFileSaver) { mutableStateOf<File?>(null) }
     var globalLoopEnabled by rememberSaveable { mutableStateOf(true) }
+    var isRefreshing by remember { mutableStateOf(false) }
+    var refreshTrigger by remember { mutableStateOf(0) }
 
     // Intercept hardware Back Button
     val isHome = currentDirectory.absolutePath == homeDirectory.absolutePath
@@ -64,7 +69,7 @@ fun MainScreen(
     }
 
     // Load files when directory or permission changes
-    LaunchedEffect(currentDirectory, permissionGranted) {
+    LaunchedEffect(currentDirectory, permissionGranted, refreshTrigger) {
         if (!permissionGranted) return@LaunchedEffect
 
         isLoading = true
@@ -99,6 +104,7 @@ fun MainScreen(
                 filesList = emptyList()
             } finally {
                 isLoading = false
+                isRefreshing = false
             }
         }
     }
@@ -118,31 +124,50 @@ fun MainScreen(
                     homeDir = homeDirectory
                 )
             }
-            Box(
+            PullToRefreshBox(
+                isRefreshing = isRefreshing,
+                onRefresh = {
+                    isRefreshing = true
+                    refreshTrigger++
+                },
                 modifier = Modifier
                     .fillMaxSize()
                     .weight(1f)
             ) {
                 if (!permissionGranted) {
                     PermissionRequestView(onRequestPermission = onRequestPermission)
-                } else if (isLoading) {
+                } else if (isLoading && !isRefreshing) {
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center),
                         color = MaterialTheme.colorScheme.primary
                     )
                 } else if (errorMessage != null) {
-                    ErrorView(
-                        message = errorMessage ?: "",
-                        onBackToHome = { currentDirectory = homeDirectory }
-                      )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        ErrorView(
+                            message = errorMessage ?: "",
+                            onBackToHome = { currentDirectory = homeDirectory }
+                        )
+                    }
                 } else if (filesList.isEmpty()) {
-                    EmptyDirectoryView(
-                        onBack = {
-                            val parent = currentDirectory.parentFile
-                            if (parent != null) currentDirectory = parent
-                        },
-                        showBackButton = !isHome
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState()),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        EmptyDirectoryView(
+                            onBack = {
+                                val parent = currentDirectory.parentFile
+                                if (parent != null) currentDirectory = parent
+                            },
+                            showBackButton = !isHome
+                        )
+                    }
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
