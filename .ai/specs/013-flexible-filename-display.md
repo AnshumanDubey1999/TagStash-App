@@ -1,6 +1,6 @@
 # Spec 013: Flexible Filename Display
 
-- **Status**: IN_PROGRESS
+- **Status**: DONE
 - **Date**: 2026-07-11
 
 ---
