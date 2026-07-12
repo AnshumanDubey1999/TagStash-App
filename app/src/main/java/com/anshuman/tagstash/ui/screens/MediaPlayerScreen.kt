@@ -458,8 +458,8 @@ fun MediaPlayerScreen(
                             text = file.name,
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp,
-                            maxLines = 1,
+                            fontSize = 13.sp,
+                            maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
                         Spacer(modifier = Modifier.height(2.dp))
