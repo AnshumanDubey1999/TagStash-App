@@ -162,4 +162,34 @@ class FileHelperTest {
         val avifDims = getImageDimensions(avifFile)
         assertNotNull(avifDims)
     }
+
+    @Test
+    fun testPreloadIndicesCalculation() {
+        val getPreloadIndices = { currentIndex: Int, size: Int ->
+            val targets = listOf(
+                currentIndex + 1, // 1st Next
+                currentIndex - 1, // 1st Prev
+                currentIndex + 2  // 2nd Next
+            )
+            targets.filter { it in 0 until size }
+        }
+
+        // Start of list (size 10)
+        assertEquals(listOf(1, 2), getPreloadIndices(0, 10))
+
+        // Middle of list (size 10)
+        assertEquals(listOf(6, 4, 7), getPreloadIndices(5, 10))
+
+        // Near end of list (size 10)
+        assertEquals(listOf(9, 7), getPreloadIndices(8, 10))
+
+        // End of list (size 10)
+        assertEquals(listOf(8), getPreloadIndices(9, 10))
+
+        // Single item list (size 1)
+        assertEquals(emptyList<Int>(), getPreloadIndices(0, 1))
+
+        // Empty list (size 0)
+        assertEquals(emptyList<Int>(), getPreloadIndices(0, 0))
+    }
 }
