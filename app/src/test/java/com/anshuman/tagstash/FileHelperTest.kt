@@ -7,6 +7,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import android.webkit.MimeTypeMap
+import org.robolectric.Shadows.shadowOf
 import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
@@ -75,6 +77,8 @@ class FileHelperTest {
         assertTrue(isImage("photo.png"))
         assertTrue(isImage("PICTURE.JPG"))
         assertTrue(isImage("anim.gif"))
+        assertTrue(isImage("photo.avif"))
+        assertTrue(isImage("PICTURE.AVIF"))
         assertFalse(isImage("doc.pdf"))
 
         // Video formats
@@ -92,6 +96,18 @@ class FileHelperTest {
         assertTrue(isDocument("notes.txt"))
         assertTrue(isDocument("data.json"))
         assertFalse(isDocument("script.sh"))
+    }
+
+    @Test
+    fun testGetMimeType() {
+        val shadowMap = shadowOf(MimeTypeMap.getSingleton())
+        shadowMap.addExtensionMimeTypeMapping("png", "image/png")
+        shadowMap.addExtensionMimeTypeMapping("mp4", "video/mp4")
+
+        assertEquals("image/png", getMimeType(File("test.png")))
+        assertEquals("image/avif", getMimeType(File("test.avif")))
+        assertEquals("image/avif", getMimeType(File("test.AVIF")))
+        assertEquals("video/mp4", getMimeType(File("test.mp4")))
     }
 
     @Test
@@ -140,5 +156,10 @@ class FileHelperTest {
         val dims = getImageDimensions(file1)
         assertTrue(dims.width > 0)
         assertTrue(dims.height > 0)
+
+        val singleFolder = File(testDataDir, "images/single_image")
+        val avifFile = File(singleFolder, "sample.avif")
+        val avifDims = getImageDimensions(avifFile)
+        assertNotNull(avifDims)
     }
 }

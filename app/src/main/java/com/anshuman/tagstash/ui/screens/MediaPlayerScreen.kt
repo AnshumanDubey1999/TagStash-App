@@ -50,6 +50,7 @@ import androidx.media3.ui.PlayerView
 import coil.ImageLoader
 import coil.compose.SubcomposeAsyncImage
 import coil.decode.ImageDecoderDecoder
+import coil.request.ImageRequest
 import com.anshuman.tagstash.data.utils.ImageDimensions
 import com.anshuman.tagstash.data.utils.formatFileSize
 import com.anshuman.tagstash.data.utils.formatLastModified
@@ -223,6 +224,14 @@ fun MediaPlayerScreen(
                     .build()
             }
 
+            val imageRequest = remember(file, context) {
+                val isAvif = file.extension.lowercase() == "avif"
+                ImageRequest.Builder(context)
+                    .data(file)
+                    .allowHardware(!isAvif)
+                    .build()
+            }
+
             LaunchedEffect(file) {
                 withContext(Dispatchers.IO) {
                     imageDimensions = getImageDimensions(file)
@@ -286,7 +295,7 @@ fun MediaPlayerScreen(
                         }
                 ) {
                     SubcomposeAsyncImage(
-                        model = file,
+                        model = imageRequest,
                         imageLoader = imageLoader,
                         contentDescription = null,
                         contentScale = ContentScale.Fit,

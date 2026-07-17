@@ -83,7 +83,7 @@ fun formatLastModified(timestamp: Long): String {
 
 fun isImage(name: String): Boolean {
     val ext = name.substringAfterLast('.', "").lowercase()
-    return ext in setOf("png", "jpg", "jpeg", "webp", "gif", "bmp")
+    return ext in setOf("png", "jpg", "jpeg", "webp", "gif", "bmp", "avif")
 }
 
 fun isVideo(name: String): Boolean {
@@ -124,6 +124,7 @@ fun openFileWithOS(context: Context, file: File) {
 
 fun getMimeType(file: File): String {
     val ext = file.extension.lowercase()
+    if (ext == "avif") return "image/avif"
     return MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext) ?: "*/*"
 }
 
