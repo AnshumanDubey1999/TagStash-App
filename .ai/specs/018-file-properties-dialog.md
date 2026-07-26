@@ -1,6 +1,6 @@
 # Specification: 018-file-properties-dialog
 
-**Status**: IN_PROGRESS
+**Status**: DONE
 
 ---
 
