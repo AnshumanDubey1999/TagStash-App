@@ -1,6 +1,6 @@
 # Specification: 017-high-res-avif-support
 
-**Status**: IN_PROGRESS
+**Status**: DONE
 
 ---
 
