@@ -25,6 +25,7 @@ import com.anshuman.tagstash.data.utils.isVideo
 import com.anshuman.tagstash.ui.components.BreadcrumbsBar
 import com.anshuman.tagstash.ui.components.EmptyDirectoryView
 import com.anshuman.tagstash.ui.components.ErrorView
+import com.anshuman.tagstash.ui.components.FilePropertiesDialog
 import com.anshuman.tagstash.ui.components.FileRowItem
 import com.anshuman.tagstash.ui.components.PermissionRequestView
 import kotlinx.coroutines.Dispatchers
@@ -58,6 +59,7 @@ fun MainScreen(
     var globalLoopEnabled by rememberSaveable { mutableStateOf(true) }
     var isRefreshing by remember { mutableStateOf(false) }
     var refreshTrigger by remember { mutableStateOf(0) }
+    var selectedPropertiesFile by rememberSaveable(stateSaver = NullableFileSaver) { mutableStateOf<File?>(null) }
 
     // Intercept hardware Back Button
     val isHome = currentDirectory.absolutePath == homeDirectory.absolutePath
@@ -187,6 +189,9 @@ fun MainScreen(
                                             openFileWithOS(context, targetFile)
                                         }
                                     }
+                                },
+                                onInfoClick = {
+                                    selectedPropertiesFile = File(fileItem.path)
                                 }
                             )
                         }
@@ -194,6 +199,13 @@ fun MainScreen(
                 }
             }
         }
+    }
+
+    if (selectedPropertiesFile != null) {
+        FilePropertiesDialog(
+            file = selectedPropertiesFile!!,
+            onDismissRequest = { selectedPropertiesFile = null }
+        )
     }
 
     if (activeMediaPlayerFile != null) {
