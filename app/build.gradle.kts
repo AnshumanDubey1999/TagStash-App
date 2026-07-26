@@ -39,6 +39,7 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
+        freeCompilerArgs = freeCompilerArgs + listOf("-Xskip-metadata-version-check")
     }
     buildFeatures {
         compose = true
@@ -47,6 +48,15 @@ android {
         unitTests {
             isIncludeAndroidResources = true
         }
+    }
+}
+
+configurations.all {
+    resolutionStrategy {
+        force("org.jetbrains.kotlin:kotlin-stdlib:2.0.21")
+        force("org.jetbrains.kotlin:kotlin-stdlib-jdk7:2.0.21")
+        force("org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.0.21")
+        force("org.jetbrains.kotlin:kotlin-stdlib-common:2.0.21")
     }
 }
 
@@ -66,6 +76,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.coil.compose)
     implementation(libs.coil.gif)
+    implementation("io.github.awxkee:avif-coder:2.2.0")
     implementation(libs.media3.exoplayer)
     implementation(libs.media3.ui)
     debugImplementation(libs.androidx.compose.ui.tooling)

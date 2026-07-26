@@ -51,6 +51,8 @@ import coil.ImageLoader
 import coil.compose.SubcomposeAsyncImage
 import coil.decode.ImageDecoderDecoder
 import coil.request.ImageRequest
+import coil.size.Precision
+import com.anshuman.tagstash.data.utils.AvifCoderDecoder
 import com.anshuman.tagstash.data.utils.ImageDimensions
 import com.anshuman.tagstash.data.utils.formatFileSize
 import com.anshuman.tagstash.data.utils.formatLastModified
@@ -219,6 +221,7 @@ fun MediaPlayerScreen(
             val imageLoader = remember(context) {
                 ImageLoader.Builder(context)
                     .components {
+                        add(AvifCoderDecoder.Factory())
                         if (Build.VERSION.SDK_INT >= 28) {
                             add(ImageDecoderDecoder.Factory())
                         }
@@ -226,76 +229,88 @@ fun MediaPlayerScreen(
                     .build()
             }
 
-            val imageRequest = remember(file, context) {
-                val isAvif = file.extension.lowercase() == "avif"
-                ImageRequest.Builder(context)
-                    .data(file)
-                    .allowHardware(!isAvif)
-                    .build()
-            }
-
-            LaunchedEffect(file) {
-                if (!dimensionCache.containsKey(file)) {
-                    val dims = withContext(Dispatchers.IO) {
-                        getImageDimensions(file)
-                    }
-                    dimensionCache[file] = dims
-                }
-                imageDimensions = dimensionCache[file]
-            }
-
-            LaunchedEffect(file, siblingMedia, currentIndex) {
-                val targets = listOf(
-                    currentIndex + 1, // 1st Next
-                    currentIndex - 1, // 1st Prev
-                    currentIndex + 2  // 2nd Next
-                )
-
-                targets.forEach { idx ->
-                    if (idx in siblingMedia.indices) {
-                        val targetFile = siblingMedia[idx]
-                        try {
-                            if (isImage(targetFile.name)) {
-                                val isAvif = targetFile.extension.lowercase() == "avif"
-                                val prefetchRequest = ImageRequest.Builder(context)
-                                    .data(targetFile)
-                                    .allowHardware(!isAvif)
-                                    .build()
-                                imageLoader.execute(prefetchRequest)
-                            }
-                            if (isImage(targetFile.name) && !dimensionCache.containsKey(targetFile)) {
-                                val dims = withContext(Dispatchers.IO) {
-                                    getImageDimensions(targetFile)
-                                }
-                                dimensionCache[targetFile] = dims
-                            }
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                            Log.e("MediaPlayerScreen", "Failed to preload ${targetFile.name}", e)
-                        }
-                    }
-                }
-
-                // Prune cache: retain only active file and target preloaded files
-                val activeAndPreloaded = targets.mapNotNull { idx ->
-                    if (idx in siblingMedia.indices) siblingMedia[idx] else null
-                }.toSet() + file
-
-                val iterator = dimensionCache.iterator()
-                while (iterator.hasNext()) {
-                    val entry = iterator.next()
-                    if (entry.key !in activeAndPreloaded) {
-                        iterator.remove()
-                    }
-                }
-            }
-
             BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
                 val density = LocalDensity.current
                 val screenWidthPx = with(density) { maxWidth.toPx() }
                 val screenHeightPx = with(density) { maxHeight.toPx() }
                 val dims = imageDimensions
+
+                val imageRequest = remember(file, context, screenWidthPx, screenHeightPx) {
+                    val isAvif = file.extension.lowercase() == "avif"
+                    ImageRequest.Builder(context)
+                        .data(file)
+                        .allowHardware(!isAvif)
+                        .apply {
+                            if (isAvif && screenWidthPx > 0 && screenHeightPx > 0) {
+                                size(screenWidthPx.toInt(), screenHeightPx.toInt())
+                                precision(Precision.INEXACT)
+                            }
+                        }
+                        .build()
+                }
+
+                LaunchedEffect(file) {
+                    if (!dimensionCache.containsKey(file)) {
+                        val dimsResult = withContext(Dispatchers.IO) {
+                            getImageDimensions(file)
+                        }
+                        dimensionCache[file] = dimsResult
+                    }
+                    imageDimensions = dimensionCache[file]
+                }
+
+                LaunchedEffect(file, siblingMedia, currentIndex, screenWidthPx, screenHeightPx) {
+                    val targets = listOf(
+                        currentIndex + 1, // 1st Next
+                        currentIndex - 1, // 1st Prev
+                        currentIndex + 2  // 2nd Next
+                    )
+
+                    targets.forEach { idx ->
+                        if (idx in siblingMedia.indices) {
+                            val targetFile = siblingMedia[idx]
+                            try {
+                                if (isImage(targetFile.name)) {
+                                    val isAvif = targetFile.extension.lowercase() == "avif"
+                                    val prefetchRequest = ImageRequest.Builder(context)
+                                        .data(targetFile)
+                                        .allowHardware(!isAvif)
+                                        .apply {
+                                            if (isAvif && screenWidthPx > 0 && screenHeightPx > 0) {
+                                                size(screenWidthPx.toInt(), screenHeightPx.toInt())
+                                                precision(Precision.INEXACT)
+                                            }
+                                        }
+                                        .build()
+                                    imageLoader.execute(prefetchRequest)
+                                }
+                                if (isImage(targetFile.name) && !dimensionCache.containsKey(targetFile)) {
+                                    val dimsResult = withContext(Dispatchers.IO) {
+                                        getImageDimensions(targetFile)
+                                    }
+                                    dimensionCache[targetFile] = dimsResult
+                                }
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                Log.e("MediaPlayerScreen", "Failed to preload ${targetFile.name}", e)
+                            }
+                        }
+                    }
+
+                    // Prune cache: retain only active file and target preloaded files
+                    val activeAndPreloaded = targets.mapNotNull { idx ->
+                        if (idx in siblingMedia.indices) siblingMedia[idx] else null
+                    }.toSet() + file
+
+                    val iterator = dimensionCache.iterator()
+                    while (iterator.hasNext()) {
+                        val entry = iterator.next()
+                        if (entry.key !in activeAndPreloaded) {
+                            iterator.remove()
+                        }
+                    }
+                }
 
                 Box(
                     modifier = Modifier
