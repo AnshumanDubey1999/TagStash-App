@@ -23,6 +23,42 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            val keystorePath = System.getenv("RELEASE_KEYSTORE_FILE")
+                ?: (project.findProperty("RELEASE_KEYSTORE_FILE") as? String)
+            val keystorePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
+                ?: (project.findProperty("RELEASE_KEYSTORE_PASSWORD") as? String)
+            val keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+                ?: (project.findProperty("RELEASE_KEY_ALIAS") as? String)
+            val keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+                ?: (project.findProperty("RELEASE_KEY_PASSWORD") as? String)
+
+            if (keystorePath != null && keystorePassword != null && keyAlias != null) {
+                val keystoreFile = File(keystorePath)
+                if (keystoreFile.exists()) {
+                    storeFile = keystoreFile
+                    storePassword = keystorePassword
+                    this.keyAlias = keyAlias
+                    this.keyPassword = keyPassword ?: keystorePassword
+                } else {
+                    throw org.gradle.api.GradleException("Release keystore file specified at '$keystorePath' was not found.")
+                }
+            } else {
+                val isReleaseBuildRequested = gradle.startParameter.taskNames.any { task ->
+                    task.contains("Release", ignoreCase = true) &&
+                    (task.contains("assemble", ignoreCase = true) || task.contains("bundle", ignoreCase = true) || task.contains("package", ignoreCase = true))
+                }
+                if (isReleaseBuildRequested) {
+                    throw org.gradle.api.GradleException(
+                        "Release signing credentials (RELEASE_KEYSTORE_FILE, RELEASE_KEYSTORE_PASSWORD, RELEASE_KEY_ALIAS, RELEASE_KEY_PASSWORD) are missing. " +
+                        "Please provide them via environment variables or gradle.properties."
+                    )
+                }
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -30,7 +66,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     compileOptions {
