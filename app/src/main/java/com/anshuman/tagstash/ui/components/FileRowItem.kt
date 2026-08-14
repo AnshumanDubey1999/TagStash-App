@@ -16,6 +16,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
@@ -50,7 +52,10 @@ fun FileRowItem(
     onInfoClick: (() -> Unit)? = null,
     isSelectionMode: Boolean = false,
     isSelected: Boolean = false,
-    onSelectClick: (() -> Unit)? = null
+    onSelectClick: (() -> Unit)? = null,
+    onCutClick: (() -> Unit)? = null,
+    onCopyClick: (() -> Unit)? = null,
+    onContextMenuVisibilityChanged: ((Boolean) -> Unit)? = null
 ) {
     val fileIcon = remember(item) { getFileIcon(item) }
     val iconColor = remember(item) { getIconColor(item) }
@@ -75,6 +80,7 @@ fun FileRowItem(
                             onClick()
                         } else {
                             showContextMenu = true
+                            onContextMenuVisibilityChanged?.invoke(true)
                         }
                     }
                 )
@@ -148,7 +154,10 @@ fun FileRowItem(
         ) {
             DropdownMenu(
                 expanded = showContextMenu,
-                onDismissRequest = { showContextMenu = false }
+                onDismissRequest = {
+                    showContextMenu = false
+                    onContextMenuVisibilityChanged?.invoke(false)
+                }
             ) {
                 DropdownMenuItem(
                     text = { Text("Select") },
@@ -161,7 +170,38 @@ fun FileRowItem(
                     },
                     onClick = {
                         showContextMenu = false
+                        onContextMenuVisibilityChanged?.invoke(false)
                         onSelectClick?.invoke()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Cut") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.ContentCut,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    onClick = {
+                        showContextMenu = false
+                        onContextMenuVisibilityChanged?.invoke(false)
+                        onCutClick?.invoke()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Copy") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    onClick = {
+                        showContextMenu = false
+                        onContextMenuVisibilityChanged?.invoke(false)
+                        onCopyClick?.invoke()
                     }
                 )
                 DropdownMenuItem(
@@ -175,6 +215,7 @@ fun FileRowItem(
                     },
                     onClick = {
                         showContextMenu = false
+                        onContextMenuVisibilityChanged?.invoke(false)
                         onInfoClick?.invoke()
                     }
                 )

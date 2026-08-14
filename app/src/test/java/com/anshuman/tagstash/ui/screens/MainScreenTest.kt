@@ -476,4 +476,114 @@ class MainScreenTest {
             file1.delete()
         }
     }
+
+    @Test
+    fun testFileRowLongPressCutAndCopy() {
+        composeTestRule.setContent {
+            TagStashTheme {
+                MainScreen(
+                    permissionGranted = true,
+                    onRequestPermission = {},
+                    homeDirectory = testDataDir
+                )
+            }
+        }
+
+        // Long press on images folder
+        composeTestRule.onNodeWithText("images").performTouchInput { longClick() }
+        composeTestRule.waitForIdle()
+
+        // Verify options
+        composeTestRule.onNodeWithText("Select").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Cut").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Copy").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Info").assertIsDisplayed()
+
+        // Click Copy
+        composeTestRule.onNodeWithText("Copy").performClick()
+        composeTestRule.waitForIdle()
+
+        org.junit.Assert.assertEquals(1, AppClipboard.size)
+        val imagesFile = File(testDataDir, "images")
+        org.junit.Assert.assertEquals(ClipboardOpType.COPY, AppClipboard.getOpType(imagesFile))
+    }
+
+    @Test
+    fun testSelectionModeCutAndCopyBottomBar() {
+        composeTestRule.setContent {
+            TagStashTheme {
+                MainScreen(
+                    permissionGranted = true,
+                    onRequestPermission = {},
+                    homeDirectory = testDataDir
+                )
+            }
+        }
+
+        // Enter selection mode
+        composeTestRule.onNodeWithContentDescription("More options").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Select").performClick()
+        composeTestRule.waitForIdle()
+
+        // Select images and videos
+        composeTestRule.onNodeWithText("images").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("videos").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("2 items selected").assertIsDisplayed()
+
+        // Click Cut button on bottom bar
+        composeTestRule.onNodeWithContentDescription("Cut selected files").performClick()
+        composeTestRule.waitForIdle()
+
+        // Verify 2 items in clipboard as CUT and selection mode exited
+        org.junit.Assert.assertEquals(2, AppClipboard.size)
+        org.junit.Assert.assertEquals(ClipboardOpType.CUT, AppClipboard.getOpType(File(testDataDir, "images")))
+        org.junit.Assert.assertEquals(ClipboardOpType.CUT, AppClipboard.getOpType(File(testDataDir, "videos")))
+
+        // Verify selection mode exited
+        composeTestRule.onNodeWithContentDescription("More options").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Select").assertIsDisplayed()
+    }
+
+    @Test
+    fun testFloatingPasteButtonWithBadge() {
+        val file1 = File(testDataDir, "sample.txt").apply { writeText("text") }
+        AppClipboard.addItem(file1, ClipboardOpType.COPY)
+
+        try {
+            composeTestRule.setContent {
+                TagStashTheme {
+                    MainScreen(
+                        permissionGranted = true,
+                        onRequestPermission = {},
+                        homeDirectory = testDataDir
+                    )
+                }
+            }
+
+            // Verify FAB is displayed with badge
+            composeTestRule.onNodeWithContentDescription("Paste from clipboard").assertIsDisplayed()
+            composeTestRule.onNodeWithText("1").assertIsDisplayed()
+            composeTestRule.onRoot().captureRoboImage("screenshots/main_screen_floating_paste_button.png")
+
+            // Long press images row -> context menu opens -> FAB should be hidden
+            composeTestRule.onNodeWithText("images").performTouchInput { longClick() }
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithContentDescription("Paste from clipboard").assertDoesNotExist()
+
+            // Dismiss menu by clicking Info
+            composeTestRule.onNodeWithText("Info").performClick()
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithContentDescription("Close properties dialog").performClick()
+            composeTestRule.waitForIdle()
+
+            // FAB should reappear
+            composeTestRule.onNodeWithContentDescription("Paste from clipboard").assertIsDisplayed()
+        } finally {
+            file1.delete()
+        }
+    }
 }

@@ -29,6 +29,14 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.shape.CircleShape
+import com.anshuman.tagstash.ui.components.CapacityLimitDialog
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.FloatingActionButton
 import com.anshuman.tagstash.data.clipboard.AppClipboard
 import com.anshuman.tagstash.data.clipboard.ClipboardOpType
 import com.anshuman.tagstash.data.model.FileItem
@@ -95,9 +103,33 @@ fun MainScreen(
     // Clipboard and Paste State
     val coroutineScope = rememberCoroutineScope()
     var showClipboardDialog by rememberSaveable { mutableStateOf(false) }
+    var showCapacityLimitDialog by rememberSaveable { mutableStateOf(false) }
     var activeConflictFile by remember { mutableStateOf<File?>(null) }
     var conflictDeferred by remember { mutableStateOf<CompletableDeferred<Pair<ConflictResolution, Boolean>>?>(null) }
     var isPasting by remember { mutableStateOf(false) }
+    var isContextMenuOpen by remember { mutableStateOf(false) }
+
+    fun cutSelectedFiles() {
+        val files = selectedFiles.toList()
+        val success = AppClipboard.addItems(files, ClipboardOpType.CUT)
+        if (!success) {
+            showCapacityLimitDialog = true
+        } else {
+            isSelectionMode = false
+            selectedFiles = emptySet()
+        }
+    }
+
+    fun copySelectedFiles() {
+        val files = selectedFiles.toList()
+        val success = AppClipboard.addItems(files, ClipboardOpType.COPY)
+        if (!success) {
+            showCapacityLimitDialog = true
+        } else {
+            isSelectionMode = false
+            selectedFiles = emptySet()
+        }
+    }
 
     fun executePaste() {
         if (AppClipboard.items.isEmpty() || isPasting) return
@@ -267,6 +299,12 @@ fun MainScreen(
                             selectedFiles = filesList.map { File(it.path) }.toSet()
                         }
                     },
+                    onCutSelected = {
+                        cutSelectedFiles()
+                    },
+                    onCopySelected = {
+                        copySelectedFiles()
+                    },
                     onPasteClick = {
                         executePaste()
                     },
@@ -334,7 +372,7 @@ fun MainScreen(
                     } else {
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = if (isSelectionMode) 80.dp else 16.dp)
+                            contentPadding = PaddingValues(bottom = if (isSelectionMode) 80.dp else 80.dp)
                         ) {
                             items(filesList) { fileItem ->
                                 val targetFile = File(fileItem.path)
@@ -368,9 +406,59 @@ fun MainScreen(
                                     onSelectClick = {
                                         isSelectionMode = true
                                         selectedFiles = setOf(targetFile)
+                                    },
+                                    onCutClick = {
+                                        val added = AppClipboard.addItem(targetFile, ClipboardOpType.CUT)
+                                        if (!added) {
+                                            showCapacityLimitDialog = true
+                                        }
+                                    },
+                                    onCopyClick = {
+                                        val added = AppClipboard.addItem(targetFile, ClipboardOpType.COPY)
+                                        if (!added) {
+                                            showCapacityLimitDialog = true
+                                        }
+                                    },
+                                    onContextMenuVisibilityChanged = {
+                                        isContextMenuOpen = it
                                     }
                                 )
                             }
+                        }
+                    }
+                }
+
+                // Floating Action Button (FAB) for Paste in normal mode
+                if (permissionGranted && !isSelectionMode && AppClipboard.items.isNotEmpty() && !isContextMenuOpen) {
+                    FloatingActionButton(
+                        onClick = { executePaste() },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 20.dp, bottom = 20.dp)
+                            .navigationBarsPadding(),
+                        shape = CircleShape,
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    ) {
+                        BadgedBox(
+                            badge = {
+                                Badge(
+                                    containerColor = MaterialTheme.colorScheme.error,
+                                    contentColor = MaterialTheme.colorScheme.onError
+                                ) {
+                                    Text(
+                                        text = AppClipboard.size.toString(),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ContentPaste,
+                                contentDescription = "Paste from clipboard",
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     }
                 }
@@ -407,18 +495,48 @@ fun MainScreen(
                                 color = Color.White
                             )
 
-                            IconButton(
-                                onClick = {
-                                    isSelectionMode = false
-                                    selectedFiles = emptySet()
-                                },
-                                modifier = Modifier.size(36.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Close selection mode",
-                                    tint = Color(0xFFA0A0A0)
-                                )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(
+                                    onClick = { cutSelectedFiles() },
+                                    enabled = selectedFiles.isNotEmpty(),
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCut,
+                                        contentDescription = "Cut selected files",
+                                        tint = if (selectedFiles.isNotEmpty()) MaterialTheme.colorScheme.primary else Color(0xFF666666)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(4.dp))
+
+                                IconButton(
+                                    onClick = { copySelectedFiles() },
+                                    enabled = selectedFiles.isNotEmpty(),
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = "Copy selected files",
+                                        tint = if (selectedFiles.isNotEmpty()) MaterialTheme.colorScheme.primary else Color(0xFF666666)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(4.dp))
+
+                                IconButton(
+                                    onClick = {
+                                        isSelectionMode = false
+                                        selectedFiles = emptySet()
+                                    },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Close selection mode",
+                                        tint = Color(0xFFA0A0A0)
+                                    )
+                                }
                             }
                         }
                     }
@@ -459,6 +577,10 @@ fun MainScreen(
             onClearAll = { AppClipboard.clear() },
             onDismissRequest = { showClipboardDialog = false }
         )
+    }
+
+    if (showCapacityLimitDialog) {
+        CapacityLimitDialog(onDismiss = { showCapacityLimitDialog = false })
     }
 
     if (activeMediaPlayerFile != null) {

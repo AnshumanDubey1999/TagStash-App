@@ -6,6 +6,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.ContentPasteGo
 import androidx.compose.material.icons.filled.Deselect
@@ -48,6 +50,8 @@ fun BreadcrumbsBar(
     clipboardCount: Int = 0,
     onSelectModeToggle: () -> Unit = {},
     onSelectAllToggle: () -> Unit = {},
+    onCutSelected: (() -> Unit)? = null,
+    onCopySelected: (() -> Unit)? = null,
     onPasteClick: (() -> Unit)? = null,
     onClipboardClick: (() -> Unit)? = null,
     onInfoClick: (() -> Unit)? = null
@@ -149,6 +153,39 @@ fun BreadcrumbsBar(
                             onClick = {
                                 showMenu = false
                                 onSelectAllToggle()
+                            }
+                        )
+
+                        val isActionEnabled = selectedCount > 0
+                        DropdownMenuItem(
+                            text = { Text("Cut") },
+                            enabled = isActionEnabled,
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.ContentCut,
+                                    contentDescription = null,
+                                    tint = if (isActionEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                )
+                            },
+                            onClick = {
+                                showMenu = false
+                                onCutSelected?.invoke()
+                            }
+                        )
+
+                        DropdownMenuItem(
+                            text = { Text("Copy") },
+                            enabled = isActionEnabled,
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.ContentCopy,
+                                    contentDescription = null,
+                                    tint = if (isActionEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                )
+                            },
+                            onClick = {
+                                showMenu = false
+                                onCopySelected?.invoke()
                             }
                         )
                     }

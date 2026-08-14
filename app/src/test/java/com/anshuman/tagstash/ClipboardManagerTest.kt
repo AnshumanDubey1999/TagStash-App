@@ -81,4 +81,26 @@ class ClipboardManagerTest {
         assertEquals(0, AppClipboard.size)
         assertFalse(AppClipboard.contains(file1))
     }
+
+    @Test
+    fun testAtomicBatchCapacityLimit() {
+        for (i in 1..950) {
+            val file = File("/storage/emulated/0/file$i.txt")
+            AppClipboard.addItem(file, ClipboardOpType.COPY)
+        }
+        assertEquals(950, AppClipboard.size)
+
+        // Attempt to add 70 new items (950 + 70 = 1020 > 1000)
+        val batch70 = (1001..1070).map { File("/storage/emulated/0/batch$it.txt") }
+        val added70 = AppClipboard.addItems(batch70, ClipboardOpType.CUT)
+        assertFalse(added70)
+        // None should have been added
+        assertEquals(950, AppClipboard.size)
+
+        // Attempt to add 50 new items (950 + 50 = 1000)
+        val batch50 = (2001..2050).map { File("/storage/emulated/0/batch$it.txt") }
+        val added50 = AppClipboard.addItems(batch50, ClipboardOpType.CUT)
+        assertTrue(added50)
+        assertEquals(1000, AppClipboard.size)
+    }
 }
