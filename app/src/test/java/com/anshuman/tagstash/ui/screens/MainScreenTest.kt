@@ -672,20 +672,22 @@ class MainScreenTest {
             composeTestRule.waitForIdle()
             composeTestRule.onNodeWithText("Past Actions").performClick()
             composeTestRule.waitForIdle()
-            composeTestRule.waitUntil(5000) { composeTestRule.onAllNodesWithText("Paste Action").fetchSemanticsNodes().isNotEmpty() }
+            composeTestRule.waitUntil(5000) { composeTestRule.onAllNodesWithText("1 item • To: dest_audit_folder").fetchSemanticsNodes().isNotEmpty() }
 
             // Verify Action card is displayed
-            composeTestRule.onNodeWithText("Paste Action").assertIsDisplayed()
             composeTestRule.onNodeWithText("1 item • To: dest_audit_folder").assertIsDisplayed()
+            composeTestRule.onNodeWithContentDescription("Paste Action").assertIsDisplayed()
             composeTestRule.onRoot().captureRoboImage("screenshots/past_actions_with_entries.png")
 
             // Click the action card to open details dialog
-            composeTestRule.onNodeWithText("Paste Action").performClick()
+            composeTestRule.onNodeWithText("1 item • To: dest_audit_folder").performClick()
             composeTestRule.waitForIdle()
 
             // Verify Action Details Dialog
             composeTestRule.onNodeWithText("Action Details").assertIsDisplayed()
             composeTestRule.onNodeWithText("audit_sample.txt").assertIsDisplayed()
+            composeTestRule.onNodeWithText("Source").assertIsDisplayed()
+            composeTestRule.onNodeWithText("Destination").assertIsDisplayed()
             composeTestRule.onNodeWithText("COPY").assertIsDisplayed()
             composeTestRule.onNodeWithText("COPIED").assertIsDisplayed()
             composeTestRule.onRoot().captureRoboImage("screenshots/action_detail_dialog.png")

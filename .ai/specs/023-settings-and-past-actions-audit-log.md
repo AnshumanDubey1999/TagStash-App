@@ -1,6 +1,6 @@
 # Specification: 023-settings-and-past-actions-audit-log
 
-**Status**: IN_PROGRESS
+**Status**: DONE
 
 ---
 

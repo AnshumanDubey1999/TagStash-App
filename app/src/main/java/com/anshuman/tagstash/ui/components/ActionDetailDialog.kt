@@ -7,17 +7,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.DeleteOutline
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -30,7 +30,6 @@ import com.anshuman.tagstash.data.utils.formatFileSize
 import com.anshuman.tagstash.data.utils.formatLastModified
 import com.anshuman.tagstash.data.utils.getFileIcon
 import com.anshuman.tagstash.data.utils.getIconColor
-import java.io.File
 
 @Composable
 fun ActionDetailDialog(
@@ -51,7 +50,7 @@ fun ActionDetailDialog(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth(0.94f)
-                    .heightIn(max = 600.dp),
+                    .heightIn(max = 640.dp),
                 shape = RoundedCornerShape(20.dp),
                 color = Color(0xFF1E1E1E),
                 tonalElevation = 6.dp,
@@ -78,7 +77,7 @@ fun ActionDetailDialog(
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.History,
+                                    imageVector = Icons.Default.ContentPaste,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(24.dp)
@@ -116,14 +115,14 @@ fun ActionDetailDialog(
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Text(
-                        text = "Destination: ${if (entry.destinationDirectory == "/storage/emulated/0") "Internal Storage" else entry.destinationDirectory}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    SelectionContainer {
+                        Text(
+                            text = "Destination: ${if (entry.destinationDirectory == "/storage/emulated/0") "Internal Storage" else entry.destinationDirectory}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
 
                     Spacer(modifier = Modifier.height(12.dp))
                     HorizontalDivider(color = Color(0xFF2C2C2C), thickness = 1.dp)
@@ -134,7 +133,7 @@ fun ActionDetailDialog(
                         modifier = Modifier
                             .weight(1f, fill = false)
                             .fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         items(entry.items) { item ->
                             ActionDetailItemCard(item = item)
@@ -177,28 +176,54 @@ fun ActionDetailDialog(
     }
 
     if (showDeleteConfirm) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirm = false },
-            title = { Text("Delete Action Log", color = Color.White) },
-            text = { Text("Are you sure you want to delete this action from past actions?", color = Color(0xFFA0A0A0)) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showDeleteConfirm = false
-                        onDelete()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("Delete")
+        Dialog(
+            onDismissRequest = { showDeleteConfirm = false }
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(0.92f),
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFF1E1E1E),
+                border = BorderStroke(1.dp, Color(0xFF2C2C2C)),
+                tonalElevation = 6.dp
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "Delete Action Log",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "Are you sure you want to delete this action from past actions? This cannot be undone.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFFA0A0A0)
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(
+                            onClick = { showDeleteConfirm = false }
+                        ) {
+                            Text("Cancel", color = Color.White)
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                showDeleteConfirm = false
+                                onDelete()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Delete", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirm = false }) {
-                    Text("Cancel", color = Color.White)
-                }
-            },
-            containerColor = Color(0xFF1E1E1E)
-        )
+            }
+        }
     }
 }
 
@@ -218,65 +243,49 @@ private fun ActionDetailItemCard(item: AuditLogItemDetail) {
     val iconColor = remember(dummyFile) { getIconColor(dummyFile) }
 
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(14.dp),
         color = Color(0xFF141414),
         border = BorderStroke(1.dp, Color(0xFF262626)),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(12.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(iconColor.copy(alpha = 0.12f), CircleShape),
-                contentAlignment = Alignment.Center
+            // Header Row: Icon, File Name, and Badges
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = fileIcon,
-                    contentDescription = null,
-                    tint = iconColor,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = item.fileName,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 13.sp,
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "From: ${item.sourcePath}",
-                    fontSize = 11.sp,
-                    color = Color(0xFFA0A0A0),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (item.destinationPath != null) {
-                    Text(
-                        text = "To: ${item.destinationPath}",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(iconColor.copy(alpha = 0.12f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = fileIcon,
+                        contentDescription = null,
+                        tint = iconColor,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
-            }
 
-            Spacer(modifier = Modifier.width(8.dp))
+                Spacer(modifier = Modifier.width(10.dp))
 
-            Column(horizontalAlignment = Alignment.End) {
-                // Command badge
+                SelectionContainer(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = item.fileName,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = Color.White
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Badges
                 val isCut = item.command.equals("CUT", ignoreCase = true)
                 val cmdColor = if (isCut) Color(0xFFFFB74D) else Color(0xFF4FC3F7)
                 Surface(
@@ -293,9 +302,8 @@ private fun ActionDetailItemCard(item: AuditLogItemDetail) {
                     )
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.width(6.dp))
 
-                // Outcome badge
                 val (outcomeText, outcomeColor) = when (item.outcome) {
                     AuditItemOutcome.COPIED -> "COPIED" to Color(0xFF81C784)
                     AuditItemOutcome.MOVED -> "MOVED" to Color(0xFF66BB6A)
@@ -303,13 +311,65 @@ private fun ActionDetailItemCard(item: AuditLogItemDetail) {
                     AuditItemOutcome.RENAMED_COPY -> "RENAMED" to Color(0xFFBA68C8)
                     AuditItemOutcome.SKIPPED -> "SKIPPED" to Color(0xFF9E9E9E)
                 }
-                Text(
-                    text = outcomeText,
-                    color = outcomeColor,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                Surface(
+                    shape = RoundedCornerShape(4.dp),
+                    color = outcomeColor.copy(alpha = 0.15f),
+                    border = BorderStroke(1.dp, outcomeColor.copy(alpha = 0.5f))
+                ) {
+                    Text(
+                        text = outcomeText,
+                        color = outcomeColor,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
+                }
             }
+
+            Spacer(modifier = Modifier.height(10.dp))
+            HorizontalDivider(color = Color(0xFF222222), thickness = 0.5.dp)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Key-Value Rows without truncation
+            AuditPropertyRow(label = "Source", value = item.sourcePath)
+            AuditPropertyRow(
+                label = "Destination",
+                value = item.destinationPath ?: "(None - Skipped)",
+                valueColor = if (item.destinationPath != null) MaterialTheme.colorScheme.primary.copy(alpha = 0.9f) else Color(0xFFA0A0A0)
+            )
+            if (!item.isDirectory) {
+                AuditPropertyRow(label = "Size", value = formatFileSize(item.fileSize))
+            }
+        }
+    }
+}
+
+@Composable
+private fun AuditPropertyRow(
+    label: String,
+    value: String,
+    valueColor: Color = Color.White
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.Top
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+            color = Color(0xFFA0A0A0),
+            modifier = Modifier.width(90.dp)
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        SelectionContainer(modifier = Modifier.weight(1f)) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Normal),
+                color = valueColor
+            )
         }
     }
 }

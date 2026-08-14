@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
@@ -25,8 +26,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.anshuman.tagstash.data.database.AuditLogDatabaseHelper
-import com.anshuman.tagstash.data.model.AuditActionType
 import com.anshuman.tagstash.data.model.AuditItemOutcome
 import com.anshuman.tagstash.data.model.AuditLogEntry
 import com.anshuman.tagstash.data.utils.formatLastModified
@@ -199,31 +200,57 @@ fun PastActionsScreen(
     }
 
     if (showClearConfirm) {
-        AlertDialog(
-            onDismissRequest = { showClearConfirm = false },
-            title = { Text("Clear Action History", color = Color.White) },
-            text = { Text("Are you sure you want to clear all past action logs? This action cannot be undone.", color = Color(0xFFA0A0A0)) },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        showClearConfirm = false
-                        coroutineScope.launch {
-                            dbHelper.clearAllLogs()
-                            refreshLogs()
+        Dialog(
+            onDismissRequest = { showClearConfirm = false }
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(0.92f),
+                shape = RoundedCornerShape(20.dp),
+                color = Color(0xFF1E1E1E),
+                border = BorderStroke(1.dp, Color(0xFF2C2C2C)),
+                tonalElevation = 6.dp
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "Clear Action History",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = "Are you sure you want to clear all past action logs? This action cannot be undone.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFFA0A0A0)
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(
+                            onClick = { showClearConfirm = false }
+                        ) {
+                            Text("Cancel", color = Color.White)
                         }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-                ) {
-                    Text("Clear All")
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                showClearConfirm = false
+                                coroutineScope.launch {
+                                    dbHelper.clearAllLogs()
+                                    refreshLogs()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Clear All", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showClearConfirm = false }) {
-                    Text("Cancel", color = Color.White)
-                }
-            },
-            containerColor = Color(0xFF1E1E1E)
-        )
+            }
+        }
     }
 }
 
@@ -259,8 +286,8 @@ private fun PastActionCard(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.History,
-                    contentDescription = null,
+                    imageVector = Icons.Default.ContentPaste,
+                    contentDescription = "Paste Action",
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
@@ -269,25 +296,12 @@ private fun PastActionCard(
             Spacer(modifier = Modifier.width(14.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        text = when (entry.actionType) {
-                            AuditActionType.PASTE -> "Paste Action"
-                        },
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        color = Color.White
-                    )
-                    Text(
-                        text = formattedDate,
-                        fontSize = 11.sp,
-                        color = Color(0xFFA0A0A0)
-                    )
-                }
+                Text(
+                    text = formattedDate,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = Color.White
+                )
 
                 Spacer(modifier = Modifier.height(4.dp))
 
