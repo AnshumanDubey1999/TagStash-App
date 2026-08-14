@@ -100,6 +100,108 @@ suspend fun getFilePropertiesData(
     )
 }
 
+fun calculateDirectoryTotalSize(dir: File): Long {
+    var size = 0L
+    try {
+        dir.walkTopDown().maxDepth(5).forEach { f ->
+            if (f.isFile) {
+                size += f.length()
+            }
+        }
+    } catch (_: Exception) {}
+    return size
+}
+
+suspend fun getMultipleFilesPropertiesData(
+    files: List<File>
+): FilePropertiesData = withContext(Dispatchers.IO) {
+    val groups = mutableListOf<MetadataGroup>()
+
+    val totalItems = files.size
+    val folderCount = files.count { it.isDirectory }
+    val fileCount = files.count { !it.isDirectory }
+
+    var totalSize = 0L
+    var imageCount = 0
+    var videoCount = 0
+    var audioCount = 0
+    var otherDocCount = 0
+
+    files.forEach { file ->
+        if (file.isDirectory) {
+            totalSize += calculateDirectoryTotalSize(file)
+        } else {
+            totalSize += file.length()
+            val name = file.name
+            when {
+                isImage(name) -> imageCount++
+                isVideo(name) -> videoCount++
+                isAudio(name) -> audioCount++
+                else -> otherDocCount++
+            }
+        }
+    }
+
+    val summaryItems = mutableListOf<MetadataItem>()
+    val filesFoldersLabel = buildString {
+        append("$totalItems items")
+        val details = mutableListOf<String>()
+        if (fileCount > 0) details.add(if (fileCount == 1) "1 file" else "$fileCount files")
+        if (folderCount > 0) details.add(if (folderCount == 1) "1 folder" else "$folderCount folders")
+        if (details.isNotEmpty()) {
+            append(" (${details.joinToString(", ")})")
+        }
+    }
+    summaryItems.add(MetadataItem("Total Selected", filesFoldersLabel))
+
+    val formattedSize = formatFileSize(totalSize)
+    val byteFormatter = DecimalFormat("#,###")
+    summaryItems.add(MetadataItem("Total Size", "$formattedSize (${byteFormatter.format(totalSize)} bytes)"))
+
+    // Common location
+    val parents = files.mapNotNull { it.parent }.toSet()
+    val location = if (parents.size == 1) {
+        val parentPath = parents.first()
+        if (parentPath == "/storage/emulated/0") "Internal Storage" else parentPath
+    } else {
+        "Multiple locations"
+    }
+    summaryItems.add(MetadataItem("Location", location))
+
+    groups.add(MetadataGroup("Summary", summaryItems))
+
+    // Content Breakdown Group
+    val breakdownItems = mutableListOf<MetadataItem>()
+    if (folderCount > 0) {
+        breakdownItems.add(MetadataItem("Folders", folderCount.toString()))
+    }
+    if (imageCount > 0) {
+        breakdownItems.add(MetadataItem("Images", imageCount.toString()))
+    }
+    if (videoCount > 0) {
+        breakdownItems.add(MetadataItem("Videos", videoCount.toString()))
+    }
+    if (audioCount > 0) {
+        breakdownItems.add(MetadataItem("Audio", audioCount.toString()))
+    }
+    if (otherDocCount > 0) {
+        breakdownItems.add(MetadataItem("Other Files", otherDocCount.toString()))
+    }
+
+    if (breakdownItems.isNotEmpty()) {
+        groups.add(MetadataGroup("Content Breakdown", breakdownItems))
+    }
+
+    FilePropertiesData(
+        fileName = "$totalItems items selected",
+        filePath = location,
+        mimeType = "multiple",
+        isDirectory = false,
+        groups = groups,
+        tags = emptyList()
+    )
+}
+
 private fun extractImageMetadata(file: File): Pair<MetadataGroup, Pair<Int, Int>>? {
     val dims = getImageDimensions(file)
     if (dims.width <= 0 || dims.height <= 0) return null

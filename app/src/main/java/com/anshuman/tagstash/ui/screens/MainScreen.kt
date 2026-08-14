@@ -1,23 +1,34 @@
 package com.anshuman.tagstash.ui.screens
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.anshuman.tagstash.data.model.FileItem
 import com.anshuman.tagstash.data.utils.openFileWithOS
 import com.anshuman.tagstash.data.utils.isImage
@@ -42,6 +53,11 @@ val NullableFileSaver = Saver<File?, String>(
     restore = { if (it.isEmpty()) null else File(it) }
 )
 
+val FileSetSaver = Saver<Set<File>, List<String>>(
+    save = { set -> set.map { it.absolutePath } },
+    restore = { list -> list.map { File(it) }.toSet() }
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen(
@@ -61,12 +77,30 @@ fun MainScreen(
     var refreshTrigger by remember { mutableStateOf(0) }
     var selectedPropertiesFile by rememberSaveable(stateSaver = NullableFileSaver) { mutableStateOf<File?>(null) }
 
-    // Intercept hardware Back Button
+    // Selection Mode State
+    var isSelectionMode by rememberSaveable { mutableStateOf(false) }
+    var selectedFiles by rememberSaveable(stateSaver = FileSetSaver) { mutableStateOf(emptySet<File>()) }
+    var showSelectionPropertiesDialog by rememberSaveable { mutableStateOf(false) }
+
+    // Clear selection mode when currentDirectory changes
+    LaunchedEffect(currentDirectory) {
+        if (isSelectionMode) {
+            isSelectionMode = false
+            selectedFiles = emptySet()
+        }
+    }
+
+    // Intercept hardware Back Button: priority to Selection Mode first, then upward directory navigation
     val isHome = currentDirectory.absolutePath == homeDirectory.absolutePath
-    BackHandler(enabled = permissionGranted && !isHome) {
-        val parent = currentDirectory.parentFile
-        if (parent != null && currentDirectory.absolutePath != homeDirectory.absolutePath) {
-            currentDirectory = parent
+    BackHandler(enabled = permissionGranted && (isSelectionMode || !isHome)) {
+        if (isSelectionMode) {
+            isSelectionMode = false
+            selectedFiles = emptySet()
+        } else {
+            val parent = currentDirectory.parentFile
+            if (parent != null && currentDirectory.absolutePath != homeDirectory.absolutePath) {
+                currentDirectory = parent
+            }
         }
     }
 
@@ -120,83 +154,178 @@ fun MainScreen(
                 .padding(innerPadding)
         ) {
             if (permissionGranted) {
+                val isAllSelected = filesList.isNotEmpty() && selectedFiles.size == filesList.size
                 BreadcrumbsBar(
                     currentDir = currentDirectory,
-                    onNavigate = { currentDirectory = it },
+                    onNavigate = {
+                        if (isSelectionMode) {
+                            isSelectionMode = false
+                            selectedFiles = emptySet()
+                        }
+                        currentDirectory = it
+                    },
                     homeDir = homeDirectory,
+                    isSelectionMode = isSelectionMode,
+                    selectedCount = selectedFiles.size,
+                    isAllSelected = isAllSelected,
+                    onSelectModeToggle = {
+                        isSelectionMode = true
+                        selectedFiles = emptySet()
+                    },
+                    onSelectAllToggle = {
+                        if (isAllSelected) {
+                            selectedFiles = emptySet()
+                        } else {
+                            selectedFiles = filesList.map { File(it.path) }.toSet()
+                        }
+                    },
                     onInfoClick = {
-                        selectedPropertiesFile = currentDirectory
+                        if (isSelectionMode) {
+                            if (selectedFiles.isNotEmpty()) {
+                                showSelectionPropertiesDialog = true
+                            }
+                        } else {
+                            selectedPropertiesFile = currentDirectory
+                        }
                     }
                 )
             }
-            PullToRefreshBox(
-                isRefreshing = isRefreshing,
-                onRefresh = {
-                    isRefreshing = true
-                    refreshTrigger++
-                },
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .weight(1f)
             ) {
-                if (!permissionGranted) {
-                    PermissionRequestView(onRequestPermission = onRequestPermission)
-                } else if (isLoading && !isRefreshing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center),
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                } else if (errorMessage != null) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState()),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        ErrorView(
-                            message = errorMessage ?: "",
-                            onBackToHome = { currentDirectory = homeDirectory }
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = {
+                        isRefreshing = true
+                        refreshTrigger++
+                    },
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    if (!permissionGranted) {
+                        PermissionRequestView(onRequestPermission = onRequestPermission)
+                    } else if (isLoading && !isRefreshing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.Center),
+                            color = MaterialTheme.colorScheme.primary
                         )
-                    }
-                } else if (filesList.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState()),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        EmptyDirectoryView(
-                            onBack = {
-                                val parent = currentDirectory.parentFile
-                                if (parent != null) currentDirectory = parent
-                            },
-                            showBackButton = !isHome
-                        )
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 16.dp)
-                    ) {
-                        items(filesList) { fileItem ->
-                            FileRowItem(
-                                item = fileItem,
-                                onClick = {
-                                    if (fileItem.isDirectory) {
-                                        currentDirectory = File(fileItem.path)
-                                    } else {
-                                        val targetFile = File(fileItem.path)
-                                        if (isImage(targetFile.name) || isVideo(targetFile.name)) {
-                                            activeMediaPlayerFile = targetFile
-                                        } else {
-                                            openFileWithOS(context, targetFile)
-                                        }
-                                    }
-                                },
-                                onInfoClick = {
-                                    selectedPropertiesFile = File(fileItem.path)
-                                }
+                    } else if (errorMessage != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState()),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            ErrorView(
+                                message = errorMessage ?: "",
+                                onBackToHome = { currentDirectory = homeDirectory }
                             )
+                        }
+                    } else if (filesList.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState()),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            EmptyDirectoryView(
+                                onBack = {
+                                    val parent = currentDirectory.parentFile
+                                    if (parent != null) currentDirectory = parent
+                                },
+                                showBackButton = !isHome
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = if (isSelectionMode) 80.dp else 16.dp)
+                        ) {
+                            items(filesList) { fileItem ->
+                                val targetFile = File(fileItem.path)
+                                val isSelected = selectedFiles.contains(targetFile)
+                                FileRowItem(
+                                    item = fileItem,
+                                    isSelectionMode = isSelectionMode,
+                                    isSelected = isSelected,
+                                    onClick = {
+                                        if (isSelectionMode) {
+                                            selectedFiles = if (isSelected) {
+                                                selectedFiles - targetFile
+                                            } else {
+                                                selectedFiles + targetFile
+                                            }
+                                        } else {
+                                            if (fileItem.isDirectory) {
+                                                currentDirectory = targetFile
+                                            } else {
+                                                if (isImage(targetFile.name) || isVideo(targetFile.name)) {
+                                                    activeMediaPlayerFile = targetFile
+                                                } else {
+                                                    openFileWithOS(context, targetFile)
+                                                }
+                                            }
+                                        }
+                                    },
+                                    onInfoClick = {
+                                        selectedPropertiesFile = targetFile
+                                    },
+                                    onSelectClick = {
+                                        isSelectionMode = true
+                                        selectedFiles = setOf(targetFile)
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Bottom Floating Selection Bar
+                if (isSelectionMode) {
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .padding(horizontal = 20.dp, vertical = 16.dp)
+                            .navigationBarsPadding(),
+                        shape = RoundedCornerShape(16.dp),
+                        color = Color(0xFF1E1E1E),
+                        tonalElevation = 8.dp,
+                        shadowElevation = 8.dp,
+                        border = BorderStroke(1.dp, Color(0xFF2C2C2C))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            val selectedCount = selectedFiles.size
+                            val label = if (selectedCount == 1) "1 item selected" else "$selectedCount items selected"
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.titleSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp
+                                ),
+                                color = Color.White
+                            )
+
+                            IconButton(
+                                onClick = {
+                                    isSelectionMode = false
+                                    selectedFiles = emptySet()
+                                },
+                                modifier = Modifier.size(36.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Close selection mode",
+                                    tint = Color(0xFFA0A0A0)
+                                )
+                            }
                         }
                     }
                 }
@@ -208,6 +337,13 @@ fun MainScreen(
         FilePropertiesDialog(
             file = selectedPropertiesFile!!,
             onDismissRequest = { selectedPropertiesFile = null }
+        )
+    }
+
+    if (showSelectionPropertiesDialog && selectedFiles.isNotEmpty()) {
+        FilePropertiesDialog(
+            files = selectedFiles.toList(),
+            onDismissRequest = { showSelectionPropertiesDialog = false }
         )
     }
 

@@ -14,8 +14,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -28,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -43,7 +47,10 @@ import com.anshuman.tagstash.data.utils.getIconColor
 fun FileRowItem(
     item: FileItem,
     onClick: () -> Unit,
-    onInfoClick: (() -> Unit)? = null
+    onInfoClick: (() -> Unit)? = null,
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
+    onSelectClick: (() -> Unit)? = null
 ) {
     val fileIcon = remember(item) { getFileIcon(item) }
     val iconColor = remember(item) { getIconColor(item) }
@@ -51,19 +58,41 @@ fun FileRowItem(
     val formattedDate = remember(item.lastModified) { formatLastModified(item.lastModified) }
     var showContextMenu by remember { mutableStateOf(false) }
 
-    Box(modifier = Modifier.fillMaxWidth()) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else Color.Transparent
+            )
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .combinedClickable(
                     onClick = onClick,
                     onLongClick = {
-                        showContextMenu = true
+                        if (isSelectionMode) {
+                            onClick()
+                        } else {
+                            showContextMenu = true
+                        }
                     }
                 )
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            if (isSelectionMode) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = null,
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = MaterialTheme.colorScheme.primary,
+                        uncheckedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    ),
+                    modifier = Modifier.padding(end = 12.dp)
+                )
+            }
+
             Box(
                 modifier = Modifier
                     .size(44.dp)
@@ -104,7 +133,7 @@ fun FileRowItem(
                 )
             }
 
-            if (item.isDirectory) {
+            if (item.isDirectory && !isSelectionMode) {
                 Icon(
                     imageVector = Icons.Default.ChevronRight,
                     contentDescription = null,
@@ -121,6 +150,20 @@ fun FileRowItem(
                 expanded = showContextMenu,
                 onDismissRequest = { showContextMenu = false }
             ) {
+                DropdownMenuItem(
+                    text = { Text("Select") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Checklist,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    onClick = {
+                        showContextMenu = false
+                        onSelectClick?.invoke()
+                    }
+                )
                 DropdownMenuItem(
                     text = { Text("Info") },
                     leadingIcon = {

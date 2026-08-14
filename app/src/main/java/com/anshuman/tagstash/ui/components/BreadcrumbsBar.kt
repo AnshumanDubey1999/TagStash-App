@@ -4,9 +4,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Deselect
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -37,6 +40,11 @@ fun BreadcrumbsBar(
     onNavigate: (File) -> Unit,
     modifier: Modifier = Modifier,
     homeDir: File = File("/storage/emulated/0"),
+    isSelectionMode: Boolean = false,
+    selectedCount: Int = 0,
+    isAllSelected: Boolean = false,
+    onSelectModeToggle: () -> Unit = {},
+    onSelectAllToggle: () -> Unit = {},
     onInfoClick: (() -> Unit)? = null
 ) {
     val breadcrumbs = remember(currentDir, homeDir) { buildBreadcrumbs(currentDir, homeDir) }
@@ -108,13 +116,47 @@ fun BreadcrumbsBar(
                     expanded = showMenu,
                     onDismissRequest = { showMenu = false }
                 ) {
+                    if (!isSelectionMode) {
+                        DropdownMenuItem(
+                            text = { Text("Select") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Checklist,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            onClick = {
+                                showMenu = false
+                                onSelectModeToggle()
+                            }
+                        )
+                    } else {
+                        DropdownMenuItem(
+                            text = { Text(if (isAllSelected) "Deselect All" else "Select All") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = if (isAllSelected) Icons.Default.Deselect else Icons.Default.SelectAll,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            onClick = {
+                                showMenu = false
+                                onSelectAllToggle()
+                            }
+                        )
+                    }
+
+                    val isInfoEnabled = !isSelectionMode || selectedCount > 0
                     DropdownMenuItem(
                         text = { Text("Info") },
+                        enabled = isInfoEnabled,
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Default.Info,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = if (isInfoEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                             )
                         },
                         onClick = {

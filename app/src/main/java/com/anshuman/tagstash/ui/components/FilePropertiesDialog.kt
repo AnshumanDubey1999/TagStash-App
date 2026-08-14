@@ -52,29 +52,50 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.material.icons.filled.FolderZip
 import com.anshuman.tagstash.data.utils.FilePropertiesData
 import com.anshuman.tagstash.data.utils.FileTag
 import com.anshuman.tagstash.data.utils.MetadataGroup
 import com.anshuman.tagstash.data.utils.MetadataItem
 import com.anshuman.tagstash.data.utils.getFilePropertiesData
+import com.anshuman.tagstash.data.utils.getMultipleFilesPropertiesData
 import com.anshuman.tagstash.data.utils.isAudio
 import com.anshuman.tagstash.data.utils.isImage
 import com.anshuman.tagstash.data.utils.isVideo
 import java.io.File
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FilePropertiesDialog(
     file: File,
     tags: List<FileTag> = emptyList(),
     onDismissRequest: () -> Unit
 ) {
-    var propertiesData by remember(file) { mutableStateOf<FilePropertiesData?>(null) }
-    var isLoading by remember(file) { mutableStateOf(true) }
+    FilePropertiesDialog(
+        files = listOf(file),
+        tags = tags,
+        onDismissRequest = onDismissRequest
+    )
+}
 
-    LaunchedEffect(file, tags) {
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun FilePropertiesDialog(
+    files: List<File>,
+    tags: List<FileTag> = emptyList(),
+    onDismissRequest: () -> Unit
+) {
+    var propertiesData by remember(files) { mutableStateOf<FilePropertiesData?>(null) }
+    var isLoading by remember(files) { mutableStateOf(true) }
+
+    LaunchedEffect(files, tags) {
         isLoading = true
-        propertiesData = getFilePropertiesData(file, tags)
+        propertiesData = if (files.size == 1) {
+            getFilePropertiesData(files.first(), tags)
+        } else if (files.isNotEmpty()) {
+            getMultipleFilesPropertiesData(files)
+        } else {
+            null
+        }
         isLoading = false
     }
 
@@ -107,7 +128,12 @@ fun FilePropertiesDialog(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.weight(1f)
                         ) {
-                            val iconInfo = getFileIconAndColor(file)
+                            val singleFile = if (files.size == 1) files.first() else null
+                            val iconInfo = if (singleFile != null) {
+                                getFileIconAndColor(singleFile)
+                            } else {
+                                Pair(Icons.Default.FolderZip, MaterialTheme.colorScheme.primary)
+                            }
                             Box(
                                 modifier = Modifier
                                     .size(40.dp)
@@ -123,9 +149,18 @@ fun FilePropertiesDialog(
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
-                                val displayName = if (file.name == "0" || file.absolutePath == "/storage/emulated/0") "Internal Storage" else if (file.name.isEmpty()) file.absolutePath else file.name
+                                val headerTitle = if (singleFile != null) {
+                                    if (singleFile.isDirectory) "Folder Properties" else "File Properties"
+                                } else {
+                                    "Selection Properties"
+                                }
+                                val headerSubtitle = if (singleFile != null) {
+                                    if (singleFile.name == "0" || singleFile.absolutePath == "/storage/emulated/0") "Internal Storage" else if (singleFile.name.isEmpty()) singleFile.absolutePath else singleFile.name
+                                } else {
+                                    "${files.size} items selected"
+                                }
                                 Text(
-                                    text = if (file.isDirectory) "Folder Properties" else "File Properties",
+                                    text = headerTitle,
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 18.sp
@@ -133,7 +168,7 @@ fun FilePropertiesDialog(
                                     color = Color.White
                                 )
                                 Text(
-                                    text = displayName,
+                                    text = headerSubtitle,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color(0xFFA0A0A0),
                                     maxLines = 1,

@@ -61,4 +61,37 @@ class FileMetadataHelperTest {
             tempFile.delete()
         }
     }
+
+    @Test
+    fun testGetMultipleFilesPropertiesData() = runBlocking {
+        val tempDir = File.createTempFile("testDirMulti", "").apply {
+            delete()
+            mkdir()
+        }
+        val file1 = File(tempDir, "pic.png").apply { writeText("fake image bytes") }
+        val file2 = File(tempDir, "vid.mp4").apply { writeText("fake video bytes") }
+        val subDir = File(tempDir, "subFolder").apply { mkdir() }
+
+        try {
+            val data = com.anshuman.tagstash.data.utils.getMultipleFilesPropertiesData(listOf(file1, file2, subDir))
+            assertEquals("3 items selected", data.fileName)
+            assertEquals("multiple", data.mimeType)
+
+            val summaryGroup = data.groups.find { it.title == "Summary" }
+            assertNotNull(summaryGroup)
+            val totalItem = summaryGroup?.items?.find { it.label == "Total Selected" }
+            assertNotNull(totalItem)
+            assertTrue(totalItem?.value?.contains("3 items") == true)
+            assertTrue(totalItem?.value?.contains("2 files") == true)
+            assertTrue(totalItem?.value?.contains("1 folder") == true)
+
+            val breakdownGroup = data.groups.find { it.title == "Content Breakdown" }
+            assertNotNull(breakdownGroup)
+            assertEquals("1", breakdownGroup?.items?.find { it.label == "Images" }?.value)
+            assertEquals("1", breakdownGroup?.items?.find { it.label == "Videos" }?.value)
+            assertEquals("1", breakdownGroup?.items?.find { it.label == "Folders" }?.value)
+        } finally {
+            tempDir.deleteRecursively()
+        }
+    }
 }

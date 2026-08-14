@@ -1,9 +1,12 @@
 package com.anshuman.tagstash.ui.screens
 
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.onRoot
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
@@ -203,5 +206,128 @@ class MainScreenTest {
         composeTestRule.onNodeWithText("Info").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onRoot().captureRoboImage("screenshots/media_player_properties_dialog.png")
+    }
+
+    @Test
+    fun testMainScreenSelectionModeViaTopMenu() {
+        composeTestRule.setContent {
+            TagStashTheme {
+                MainScreen(
+                    permissionGranted = true,
+                    onRequestPermission = {},
+                    homeDirectory = testDataDir
+                )
+            }
+        }
+
+        // Open top menu and click Select
+        composeTestRule.onNodeWithContentDescription("More options").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Select").performClick()
+        composeTestRule.waitForIdle()
+
+        // Verify bottom hovering bar is displayed with 0 items selected
+        composeTestRule.onNodeWithText("0 items selected").assertIsDisplayed()
+
+        // Click images folder to select it
+        composeTestRule.onNodeWithText("images").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("1 item selected").assertIsDisplayed()
+
+        // Click videos folder to select it
+        composeTestRule.onNodeWithText("videos").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("2 items selected").assertIsDisplayed()
+
+        composeTestRule.onRoot().captureRoboImage("screenshots/main_screen_selection_mode.png")
+    }
+
+    @Test
+    fun testMainScreenSelectionModeViaLongPress() {
+        composeTestRule.setContent {
+            TagStashTheme {
+                MainScreen(
+                    permissionGranted = true,
+                    onRequestPermission = {},
+                    homeDirectory = testDataDir
+                )
+            }
+        }
+
+        // Long press on images folder
+        composeTestRule.onNodeWithText("images").performTouchInput { longClick() }
+        composeTestRule.waitForIdle()
+
+        // Click Select
+        composeTestRule.onNodeWithText("Select").performClick()
+        composeTestRule.waitForIdle()
+
+        // Verify selection mode active and images is selected
+        composeTestRule.onNodeWithText("1 item selected").assertIsDisplayed()
+    }
+
+    @Test
+    fun testMainScreenSelectionModeSelectAllAndProperties() {
+        composeTestRule.setContent {
+            TagStashTheme {
+                MainScreen(
+                    permissionGranted = true,
+                    onRequestPermission = {},
+                    homeDirectory = testDataDir
+                )
+            }
+        }
+
+        // Enter selection mode
+        composeTestRule.onNodeWithContentDescription("More options").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Select").performClick()
+        composeTestRule.waitForIdle()
+
+        // Select All
+        composeTestRule.onNodeWithContentDescription("More options").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Select All").performClick()
+        composeTestRule.waitForIdle()
+
+        // Open Info for the selection
+        composeTestRule.onNodeWithContentDescription("More options").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Info").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.onNodeWithText("Selection Properties").assertIsDisplayed()
+        composeTestRule.onRoot().captureRoboImage("screenshots/main_screen_selection_properties_dialog.png")
+    }
+
+    @Test
+    fun testMainScreenSelectionModeCloseButton() {
+        composeTestRule.setContent {
+            TagStashTheme {
+                MainScreen(
+                    permissionGranted = true,
+                    onRequestPermission = {},
+                    homeDirectory = testDataDir
+                )
+            }
+        }
+
+        // Enter selection mode and select an item
+        composeTestRule.onNodeWithContentDescription("More options").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Select").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("images").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("1 item selected").assertIsDisplayed()
+
+        // Close selection mode
+        composeTestRule.onNodeWithContentDescription("Close selection mode").performClick()
+        composeTestRule.waitForIdle()
+
+        // Verify "Select" is back in top menu (meaning selection mode exited)
+        composeTestRule.onNodeWithContentDescription("More options").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Select").assertIsDisplayed()
     }
 }
