@@ -3,6 +3,7 @@ package com.anshuman.tagstash.ui.screens
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -432,6 +433,7 @@ class MainScreenTest {
             // Click Keep Both
             composeTestRule.onNodeWithText("Keep Both (Rename with copy)").performClick()
             composeTestRule.waitForIdle()
+            composeTestRule.waitUntil(5000) { AppClipboard.size == 0 }
 
             // Verify clipboard is cleared
             org.junit.Assert.assertEquals(0, AppClipboard.size)
@@ -584,6 +586,123 @@ class MainScreenTest {
             composeTestRule.onNodeWithContentDescription("Paste from clipboard").assertIsDisplayed()
         } finally {
             file1.delete()
+        }
+    }
+
+    @Test
+    fun testSettingsScreenNavigationAndPastActions() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val dbHelper = com.anshuman.tagstash.data.database.AuditLogDatabaseHelper.getInstance(context)
+        kotlinx.coroutines.runBlocking { dbHelper.clearAllLogs() }
+
+        composeTestRule.setContent {
+            TagStashTheme {
+                MainScreen(
+                    permissionGranted = true,
+                    onRequestPermission = {},
+                    homeDirectory = testDataDir
+                )
+            }
+        }
+
+        // Open 3-dot menu -> Click Settings
+        composeTestRule.onNodeWithContentDescription("More options").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Settings").performClick()
+        composeTestRule.waitForIdle()
+
+        // Verify Settings Screen
+        composeTestRule.onNodeWithText("Settings").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Past Actions").assertIsDisplayed()
+        composeTestRule.onRoot().captureRoboImage("screenshots/settings_screen.png")
+
+        // Click Past Actions
+        composeTestRule.onNodeWithText("Past Actions").performClick()
+        composeTestRule.waitForIdle()
+
+        // Verify Past Actions Screen with Empty State
+        composeTestRule.onNodeWithText("Past Actions").assertIsDisplayed()
+        composeTestRule.onNodeWithText("No Past Actions").assertIsDisplayed()
+        composeTestRule.onRoot().captureRoboImage("screenshots/past_actions_empty_screen.png")
+
+        // Click Back -> Returns to Settings
+        composeTestRule.onNodeWithContentDescription("Back").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Settings").assertIsDisplayed()
+
+        // Click Back -> Returns to MainScreen
+        composeTestRule.onNodeWithContentDescription("Back").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithContentDescription("More options").assertIsDisplayed()
+    }
+
+    @Test
+    fun testPasteAuditLoggingAndDetailDialog() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val dbHelper = com.anshuman.tagstash.data.database.AuditLogDatabaseHelper.getInstance(context)
+        kotlinx.coroutines.runBlocking { dbHelper.clearAllLogs() }
+
+        val tempDir = File(testDataDir, "dest_audit_folder").apply { mkdirs() }
+        val sampleFile = File(testDataDir, "audit_sample.txt").apply { writeText("audit text") }
+        AppClipboard.addItem(sampleFile, ClipboardOpType.COPY)
+
+        try {
+            composeTestRule.setContent {
+                TagStashTheme {
+                    MainScreen(
+                        permissionGranted = true,
+                        onRequestPermission = {},
+                        homeDirectory = testDataDir,
+                        initialDirectory = tempDir
+                    )
+                }
+            }
+
+            // Click top 3-dot menu -> Paste (1)
+            composeTestRule.onNodeWithContentDescription("More options").performClick()
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithText("Paste (1)").performClick()
+            composeTestRule.waitForIdle()
+            composeTestRule.waitUntil(5000) { AppClipboard.size == 0 }
+
+            // Navigate to Settings -> Past Actions
+            composeTestRule.onNodeWithContentDescription("More options").performClick()
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithText("Settings").performClick()
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithText("Past Actions").performClick()
+            composeTestRule.waitForIdle()
+            composeTestRule.waitUntil(5000) { composeTestRule.onAllNodesWithText("Paste Action").fetchSemanticsNodes().isNotEmpty() }
+
+            // Verify Action card is displayed
+            composeTestRule.onNodeWithText("Paste Action").assertIsDisplayed()
+            composeTestRule.onNodeWithText("1 item • To: dest_audit_folder").assertIsDisplayed()
+            composeTestRule.onRoot().captureRoboImage("screenshots/past_actions_with_entries.png")
+
+            // Click the action card to open details dialog
+            composeTestRule.onNodeWithText("Paste Action").performClick()
+            composeTestRule.waitForIdle()
+
+            // Verify Action Details Dialog
+            composeTestRule.onNodeWithText("Action Details").assertIsDisplayed()
+            composeTestRule.onNodeWithText("audit_sample.txt").assertIsDisplayed()
+            composeTestRule.onNodeWithText("COPY").assertIsDisplayed()
+            composeTestRule.onNodeWithText("COPIED").assertIsDisplayed()
+            composeTestRule.onRoot().captureRoboImage("screenshots/action_detail_dialog.png")
+
+            // Click Delete Log
+            composeTestRule.onNodeWithText("Delete Log").performClick()
+            composeTestRule.waitForIdle()
+            // Confirm deletion
+            composeTestRule.onNodeWithText("Delete").performClick()
+            composeTestRule.waitForIdle()
+
+            // Verify empty state is shown after deletion
+            composeTestRule.onNodeWithText("No Past Actions").assertIsDisplayed()
+        } finally {
+            sampleFile.delete()
+            tempDir.deleteRecursively()
+            kotlinx.coroutines.runBlocking { dbHelper.clearAllLogs() }
         }
     }
 }

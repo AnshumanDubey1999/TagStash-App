@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Deselect
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -54,7 +55,8 @@ fun BreadcrumbsBar(
     onCopySelected: (() -> Unit)? = null,
     onPasteClick: (() -> Unit)? = null,
     onClipboardClick: (() -> Unit)? = null,
-    onInfoClick: (() -> Unit)? = null
+    onInfoClick: (() -> Unit)? = null,
+    onSettingsClick: (() -> Unit)? = null
 ) {
     val breadcrumbs = remember(currentDir, homeDir) { buildBreadcrumbs(currentDir, homeDir) }
     var showMenu by remember { mutableStateOf(false) }
@@ -238,6 +240,21 @@ fun BreadcrumbsBar(
                         onClick = {
                             showMenu = false
                             onInfoClick?.invoke()
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = { Text("Settings") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Settings,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        onClick = {
+                            showMenu = false
+                            onSettingsClick?.invoke()
                         }
                     )
                 }

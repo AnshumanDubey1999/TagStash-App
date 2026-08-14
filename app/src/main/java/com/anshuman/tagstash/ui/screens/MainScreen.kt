@@ -39,6 +39,11 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.FloatingActionButton
 import com.anshuman.tagstash.data.clipboard.AppClipboard
 import com.anshuman.tagstash.data.clipboard.ClipboardOpType
+import com.anshuman.tagstash.data.database.AuditLogDatabaseHelper
+import com.anshuman.tagstash.data.model.AuditActionType
+import com.anshuman.tagstash.data.model.AuditItemOutcome
+import com.anshuman.tagstash.data.model.AuditLogEntry
+import com.anshuman.tagstash.data.model.AuditLogItemDetail
 import com.anshuman.tagstash.data.model.FileItem
 import com.anshuman.tagstash.data.utils.ConflictResolution
 import com.anshuman.tagstash.data.utils.copyFileOrDirectory
@@ -55,6 +60,8 @@ import com.anshuman.tagstash.ui.components.ErrorView
 import com.anshuman.tagstash.ui.components.FilePropertiesDialog
 import com.anshuman.tagstash.ui.components.FileRowItem
 import com.anshuman.tagstash.ui.components.PermissionRequestView
+import com.anshuman.tagstash.ui.screens.PastActionsScreen
+import com.anshuman.tagstash.ui.screens.SettingsScreen
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -100,6 +107,9 @@ fun MainScreen(
     var selectedFiles by rememberSaveable(stateSaver = FileSetSaver) { mutableStateOf(emptySet<File>()) }
     var showSelectionPropertiesDialog by rememberSaveable { mutableStateOf(false) }
 
+    // Screen Navigation State (MAIN, SETTINGS, PAST_ACTIONS)
+    var currentScreenView by rememberSaveable { mutableStateOf("MAIN") }
+
     // Clipboard and Paste State
     val coroutineScope = rememberCoroutineScope()
     var showClipboardDialog by rememberSaveable { mutableStateOf(false) }
@@ -137,6 +147,7 @@ fun MainScreen(
             isPasting = true
             var batchResolution: ConflictResolution? = null
             val itemsToPaste = AppClipboard.items.toList()
+            val auditDetails = mutableListOf<AuditLogItemDetail>()
 
             for (item in itemsToPaste) {
                 val sourceFile = item.file
@@ -148,6 +159,9 @@ fun MainScreen(
                 }
 
                 var targetFile = File(currentDirectory, sourceFile.name)
+                var outcome: AuditItemOutcome = if (item.opType == ClipboardOpType.CUT) AuditItemOutcome.MOVED else AuditItemOutcome.COPIED
+                var actualDestPath: String? = targetFile.absolutePath
+
                 if (targetFile.exists()) {
                     val resolution = if (batchResolution != null) {
                         batchResolution
@@ -166,6 +180,7 @@ fun MainScreen(
 
                     when (resolution) {
                         ConflictResolution.REPLACE -> {
+                            outcome = AuditItemOutcome.REPLACED
                             if (item.opType == ClipboardOpType.CUT) {
                                 targetFile.deleteRecursively()
                                 moveFileOrDirectory(sourceFile, targetFile)
@@ -174,8 +189,10 @@ fun MainScreen(
                             }
                         }
                         ConflictResolution.KEEP_BOTH -> {
+                            outcome = AuditItemOutcome.RENAMED_COPY
                             val newName = generateCopyFileName(currentDirectory, sourceFile.name)
                             targetFile = File(currentDirectory, newName)
+                            actualDestPath = targetFile.absolutePath
                             if (item.opType == ClipboardOpType.CUT) {
                                 moveFileOrDirectory(sourceFile, targetFile)
                             } else {
@@ -183,7 +200,8 @@ fun MainScreen(
                             }
                         }
                         ConflictResolution.SKIP -> {
-                            // Skip pasting this item
+                            outcome = AuditItemOutcome.SKIPPED
+                            actualDestPath = null
                         }
                     }
                 } else {
@@ -193,6 +211,32 @@ fun MainScreen(
                         copyFileOrDirectory(sourceFile, targetFile)
                     }
                 }
+
+                auditDetails.add(
+                    AuditLogItemDetail(
+                        sourcePath = sourceFile.absolutePath,
+                        destinationPath = actualDestPath,
+                        command = item.opType.name,
+                        outcome = outcome,
+                        fileName = sourceFile.name,
+                        fileSize = if (sourceFile.isDirectory) 0L else sourceFile.length(),
+                        isDirectory = sourceFile.isDirectory
+                    )
+                )
+            }
+
+            if (auditDetails.isNotEmpty()) {
+                val dbHelper = AuditLogDatabaseHelper.getInstance(context)
+                val destName = if (currentDirectory.absolutePath == homeDirectory.absolutePath) "Internal Storage" else currentDirectory.name
+                val entry = AuditLogEntry(
+                    timestamp = System.currentTimeMillis(),
+                    actionType = AuditActionType.PASTE,
+                    summary = "Pasted ${auditDetails.size} items to $destName",
+                    destinationDirectory = currentDirectory.absolutePath,
+                    totalItems = auditDetails.size,
+                    items = auditDetails
+                )
+                dbHelper.insertLog(entry)
             }
 
             AppClipboard.clear()
@@ -209,16 +253,22 @@ fun MainScreen(
         }
     }
 
-    // Intercept hardware Back Button: priority to Selection Mode first, then upward directory navigation
+    // Intercept hardware Back Button: Navigation stack order:
+    // PastActions -> Settings -> File Explorer -> Parent directories
     val isHome = currentDirectory.absolutePath == homeDirectory.absolutePath
-    BackHandler(enabled = permissionGranted && (isSelectionMode || !isHome)) {
-        if (isSelectionMode) {
-            isSelectionMode = false
-            selectedFiles = emptySet()
-        } else {
-            val parent = currentDirectory.parentFile
-            if (parent != null && currentDirectory.absolutePath != homeDirectory.absolutePath) {
-                currentDirectory = parent
+    BackHandler(enabled = currentScreenView != "MAIN" || (permissionGranted && (isSelectionMode || !isHome))) {
+        when {
+            currentScreenView == "PAST_ACTIONS" -> currentScreenView = "SETTINGS"
+            currentScreenView == "SETTINGS" -> currentScreenView = "MAIN"
+            isSelectionMode -> {
+                isSelectionMode = false
+                selectedFiles = emptySet()
+            }
+            else -> {
+                val parent = currentDirectory.parentFile
+                if (parent != null && currentDirectory.absolutePath != homeDirectory.absolutePath) {
+                    currentDirectory = parent
+                }
             }
         }
     }
@@ -264,278 +314,292 @@ fun MainScreen(
         }
     }
 
-    Scaffold(
-        containerColor = MaterialTheme.colorScheme.background
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
-            if (permissionGranted) {
-                val isAllSelected = filesList.isNotEmpty() && selectedFiles.size == filesList.size
-                BreadcrumbsBar(
-                    currentDir = currentDirectory,
-                    onNavigate = {
-                        if (isSelectionMode) {
-                            isSelectionMode = false
-                            selectedFiles = emptySet()
-                        }
-                        currentDirectory = it
-                    },
-                    homeDir = homeDirectory,
-                    isSelectionMode = isSelectionMode,
-                    selectedCount = selectedFiles.size,
-                    isAllSelected = isAllSelected,
-                    clipboardCount = AppClipboard.size,
-                    onSelectModeToggle = {
-                        isSelectionMode = true
-                        selectedFiles = emptySet()
-                    },
-                    onSelectAllToggle = {
-                        if (isAllSelected) {
-                            selectedFiles = emptySet()
-                        } else {
-                            selectedFiles = filesList.map { File(it.path) }.toSet()
-                        }
-                    },
-                    onCutSelected = {
-                        cutSelectedFiles()
-                    },
-                    onCopySelected = {
-                        copySelectedFiles()
-                    },
-                    onPasteClick = {
-                        executePaste()
-                    },
-                    onClipboardClick = {
-                        showClipboardDialog = true
-                    },
-                    onInfoClick = {
-                        if (isSelectionMode) {
-                            if (selectedFiles.isNotEmpty()) {
-                                showSelectionPropertiesDialog = true
-                            }
-                        } else {
-                            selectedPropertiesFile = currentDirectory
-                        }
-                    }
-                )
-            }
-            Box(
+    if (currentScreenView == "SETTINGS") {
+        SettingsScreen(
+            onBack = { currentScreenView = "MAIN" },
+            onNavigateToPastActions = { currentScreenView = "PAST_ACTIONS" }
+        )
+    } else if (currentScreenView == "PAST_ACTIONS") {
+        PastActionsScreen(
+            onBack = { currentScreenView = "SETTINGS" }
+        )
+    } else {
+        Scaffold(
+            containerColor = MaterialTheme.colorScheme.background
+        ) { innerPadding ->
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .weight(1f)
+                    .padding(innerPadding)
             ) {
-                PullToRefreshBox(
-                    isRefreshing = isRefreshing,
-                    onRefresh = {
-                        isRefreshing = true
-                        refreshTrigger++
-                    },
-                    modifier = Modifier.fillMaxSize()
+                if (permissionGranted) {
+                    val isAllSelected = filesList.isNotEmpty() && selectedFiles.size == filesList.size
+                    BreadcrumbsBar(
+                        currentDir = currentDirectory,
+                        onNavigate = {
+                            if (isSelectionMode) {
+                                isSelectionMode = false
+                                selectedFiles = emptySet()
+                            }
+                            currentDirectory = it
+                        },
+                        homeDir = homeDirectory,
+                        isSelectionMode = isSelectionMode,
+                        selectedCount = selectedFiles.size,
+                        isAllSelected = isAllSelected,
+                        clipboardCount = AppClipboard.size,
+                        onSelectModeToggle = {
+                            isSelectionMode = true
+                            selectedFiles = emptySet()
+                        },
+                        onSelectAllToggle = {
+                            if (isAllSelected) {
+                                selectedFiles = emptySet()
+                            } else {
+                                selectedFiles = filesList.map { File(it.path) }.toSet()
+                            }
+                        },
+                        onCutSelected = {
+                            cutSelectedFiles()
+                        },
+                        onCopySelected = {
+                            copySelectedFiles()
+                        },
+                        onPasteClick = {
+                            executePaste()
+                        },
+                        onClipboardClick = {
+                            showClipboardDialog = true
+                        },
+                        onInfoClick = {
+                            if (isSelectionMode) {
+                                if (selectedFiles.isNotEmpty()) {
+                                    showSelectionPropertiesDialog = true
+                                }
+                            } else {
+                                selectedPropertiesFile = currentDirectory
+                            }
+                        },
+                        onSettingsClick = {
+                            currentScreenView = "SETTINGS"
+                        }
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .weight(1f)
                 ) {
-                    if (!permissionGranted) {
-                        PermissionRequestView(onRequestPermission = onRequestPermission)
-                    } else if (isLoading && !isRefreshing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.align(Alignment.Center),
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    } else if (errorMessage != null) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState()),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            ErrorView(
-                                message = errorMessage ?: "",
-                                onBackToHome = { currentDirectory = homeDirectory }
+                    PullToRefreshBox(
+                        isRefreshing = isRefreshing,
+                        onRefresh = {
+                            isRefreshing = true
+                            refreshTrigger++
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        if (!permissionGranted) {
+                            PermissionRequestView(onRequestPermission = onRequestPermission)
+                        } else if (isLoading && !isRefreshing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.align(Alignment.Center),
+                                color = MaterialTheme.colorScheme.primary
                             )
-                        }
-                    } else if (filesList.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState()),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            EmptyDirectoryView(
-                                onBack = {
-                                    val parent = currentDirectory.parentFile
-                                    if (parent != null) currentDirectory = parent
-                                },
-                                showBackButton = !isHome
-                            )
-                        }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = if (isSelectionMode) 80.dp else 80.dp)
-                        ) {
-                            items(filesList) { fileItem ->
-                                val targetFile = File(fileItem.path)
-                                val isSelected = selectedFiles.contains(targetFile)
-                                FileRowItem(
-                                    item = fileItem,
-                                    isSelectionMode = isSelectionMode,
-                                    isSelected = isSelected,
-                                    onClick = {
-                                        if (isSelectionMode) {
-                                            selectedFiles = if (isSelected) {
-                                                selectedFiles - targetFile
-                                            } else {
-                                                selectedFiles + targetFile
-                                            }
-                                        } else {
-                                            if (fileItem.isDirectory) {
-                                                currentDirectory = targetFile
-                                            } else {
-                                                if (isImage(targetFile.name) || isVideo(targetFile.name)) {
-                                                    activeMediaPlayerFile = targetFile
+                        } else if (errorMessage != null) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState()),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                ErrorView(
+                                    message = errorMessage ?: "",
+                                    onBackToHome = { currentDirectory = homeDirectory }
+                                )
+                            }
+                        } else if (filesList.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .verticalScroll(rememberScrollState()),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                EmptyDirectoryView(
+                                    onBack = {
+                                        val parent = currentDirectory.parentFile
+                                        if (parent != null) currentDirectory = parent
+                                    },
+                                    showBackButton = !isHome
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(bottom = if (isSelectionMode) 80.dp else 80.dp)
+                            ) {
+                                items(filesList) { fileItem ->
+                                    val targetFile = File(fileItem.path)
+                                    val isSelected = selectedFiles.contains(targetFile)
+                                    FileRowItem(
+                                        item = fileItem,
+                                        isSelectionMode = isSelectionMode,
+                                        isSelected = isSelected,
+                                        onClick = {
+                                            if (isSelectionMode) {
+                                                selectedFiles = if (isSelected) {
+                                                    selectedFiles - targetFile
                                                 } else {
-                                                    openFileWithOS(context, targetFile)
+                                                    selectedFiles + targetFile
+                                                }
+                                            } else {
+                                                if (fileItem.isDirectory) {
+                                                    currentDirectory = targetFile
+                                                } else {
+                                                    if (isImage(targetFile.name) || isVideo(targetFile.name)) {
+                                                        activeMediaPlayerFile = targetFile
+                                                    } else {
+                                                        openFileWithOS(context, targetFile)
+                                                    }
                                                 }
                                             }
+                                        },
+                                        onInfoClick = {
+                                            selectedPropertiesFile = targetFile
+                                        },
+                                        onSelectClick = {
+                                            isSelectionMode = true
+                                            selectedFiles = setOf(targetFile)
+                                        },
+                                        onCutClick = {
+                                            val added = AppClipboard.addItem(targetFile, ClipboardOpType.CUT)
+                                            if (!added) {
+                                                showCapacityLimitDialog = true
+                                            }
+                                        },
+                                        onCopyClick = {
+                                            val added = AppClipboard.addItem(targetFile, ClipboardOpType.COPY)
+                                            if (!added) {
+                                                showCapacityLimitDialog = true
+                                            }
+                                        },
+                                        onContextMenuVisibilityChanged = {
+                                            isContextMenuOpen = it
                                         }
-                                    },
-                                    onInfoClick = {
-                                        selectedPropertiesFile = targetFile
-                                    },
-                                    onSelectClick = {
-                                        isSelectionMode = true
-                                        selectedFiles = setOf(targetFile)
-                                    },
-                                    onCutClick = {
-                                        val added = AppClipboard.addItem(targetFile, ClipboardOpType.CUT)
-                                        if (!added) {
-                                            showCapacityLimitDialog = true
-                                        }
-                                    },
-                                    onCopyClick = {
-                                        val added = AppClipboard.addItem(targetFile, ClipboardOpType.COPY)
-                                        if (!added) {
-                                            showCapacityLimitDialog = true
-                                        }
-                                    },
-                                    onContextMenuVisibilityChanged = {
-                                        isContextMenuOpen = it
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Floating Action Button (FAB) for Paste in normal mode
+                    if (permissionGranted && !isSelectionMode && AppClipboard.items.isNotEmpty() && !isContextMenuOpen) {
+                        FloatingActionButton(
+                            onClick = { executePaste() },
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(end = 20.dp, bottom = 20.dp)
+                                .navigationBarsPadding(),
+                            shape = CircleShape,
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ) {
+                            BadgedBox(
+                                badge = {
+                                    Badge(
+                                        containerColor = MaterialTheme.colorScheme.error,
+                                        contentColor = MaterialTheme.colorScheme.onError
+                                    ) {
+                                        Text(
+                                            text = AppClipboard.size.toString(),
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
                                     }
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ContentPaste,
+                                    contentDescription = "Paste from clipboard",
+                                    modifier = Modifier.size(24.dp)
                                 )
                             }
                         }
                     }
-                }
 
-                // Floating Action Button (FAB) for Paste in normal mode
-                if (permissionGranted && !isSelectionMode && AppClipboard.items.isNotEmpty() && !isContextMenuOpen) {
-                    FloatingActionButton(
-                        onClick = { executePaste() },
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(end = 20.dp, bottom = 20.dp)
-                            .navigationBarsPadding(),
-                        shape = CircleShape,
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ) {
-                        BadgedBox(
-                            badge = {
-                                Badge(
-                                    containerColor = MaterialTheme.colorScheme.error,
-                                    contentColor = MaterialTheme.colorScheme.onError
-                                ) {
-                                    Text(
-                                        text = AppClipboard.size.toString(),
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ContentPaste,
-                                contentDescription = "Paste from clipboard",
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-                }
-
-                // Bottom Floating Selection Bar
-                if (isSelectionMode) {
-                    Surface(
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .fillMaxWidth()
-                            .padding(horizontal = 20.dp, vertical = 16.dp)
-                            .navigationBarsPadding(),
-                        shape = RoundedCornerShape(16.dp),
-                        color = Color(0xFF1E1E1E),
-                        tonalElevation = 8.dp,
-                        shadowElevation = 8.dp,
-                        border = BorderStroke(1.dp, Color(0xFF2C2C2C))
-                    ) {
-                        Row(
+                    // Bottom Floating Selection Bar
+                    if (isSelectionMode) {
+                        Surface(
                             modifier = Modifier
+                                .align(Alignment.BottomCenter)
                                 .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
+                                .padding(horizontal = 20.dp, vertical = 16.dp)
+                                .navigationBarsPadding(),
+                            shape = RoundedCornerShape(16.dp),
+                            color = Color(0xFF1E1E1E),
+                            tonalElevation = 8.dp,
+                            shadowElevation = 8.dp,
+                            border = BorderStroke(1.dp, Color(0xFF2C2C2C))
                         ) {
-                            val selectedCount = selectedFiles.size
-                            val label = if (selectedCount == 1) "1 item selected" else "$selectedCount items selected"
-                            Text(
-                                text = label,
-                                style = MaterialTheme.typography.titleSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                ),
-                                color = Color.White
-                            )
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                val selectedCount = selectedFiles.size
+                                val label = if (selectedCount == 1) "1 item selected" else "$selectedCount items selected"
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.titleSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    ),
+                                    color = Color.White
+                                )
 
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                IconButton(
-                                    onClick = { cutSelectedFiles() },
-                                    enabled = selectedFiles.isNotEmpty(),
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.ContentCut,
-                                        contentDescription = "Cut selected files",
-                                        tint = if (selectedFiles.isNotEmpty()) MaterialTheme.colorScheme.primary else Color(0xFF666666)
-                                    )
-                                }
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    IconButton(
+                                        onClick = { cutSelectedFiles() },
+                                        enabled = selectedFiles.isNotEmpty(),
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ContentCut,
+                                            contentDescription = "Cut selected files",
+                                            tint = if (selectedFiles.isNotEmpty()) MaterialTheme.colorScheme.primary else Color(0xFF666666)
+                                        )
+                                    }
 
-                                Spacer(modifier = Modifier.width(4.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
 
-                                IconButton(
-                                    onClick = { copySelectedFiles() },
-                                    enabled = selectedFiles.isNotEmpty(),
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.ContentCopy,
-                                        contentDescription = "Copy selected files",
-                                        tint = if (selectedFiles.isNotEmpty()) MaterialTheme.colorScheme.primary else Color(0xFF666666)
-                                    )
-                                }
+                                    IconButton(
+                                        onClick = { copySelectedFiles() },
+                                        enabled = selectedFiles.isNotEmpty(),
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ContentCopy,
+                                            contentDescription = "Copy selected files",
+                                            tint = if (selectedFiles.isNotEmpty()) MaterialTheme.colorScheme.primary else Color(0xFF666666)
+                                        )
+                                    }
 
-                                Spacer(modifier = Modifier.width(4.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
 
-                                IconButton(
-                                    onClick = {
-                                        isSelectionMode = false
-                                        selectedFiles = emptySet()
-                                    },
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Close selection mode",
-                                        tint = Color(0xFFA0A0A0)
-                                    )
+                                    IconButton(
+                                        onClick = {
+                                            isSelectionMode = false
+                                            selectedFiles = emptySet()
+                                        },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Close selection mode",
+                                            tint = Color(0xFFA0A0A0)
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -589,7 +653,11 @@ fun MainScreen(
             globalLoopEnabled = globalLoopEnabled,
             onToggleGlobalLoop = { globalLoopEnabled = it },
             onClose = { activeMediaPlayerFile = null },
-            onNavigateToMedia = { activeMediaPlayerFile = it }
+            onNavigateToMedia = { activeMediaPlayerFile = it },
+            onSettingsClick = {
+                activeMediaPlayerFile = null
+                currentScreenView = "SETTINGS"
+            }
         )
     }
 }

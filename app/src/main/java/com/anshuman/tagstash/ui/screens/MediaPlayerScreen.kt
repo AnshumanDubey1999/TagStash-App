@@ -81,7 +81,8 @@ fun MediaPlayerScreen(
     globalLoopEnabled: Boolean,
     onToggleGlobalLoop: (Boolean) -> Unit,
     onClose: () -> Unit,
-    onNavigateToMedia: (File) -> Unit
+    onNavigateToMedia: (File) -> Unit,
+    onSettingsClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     var showOverlays by rememberSaveable { mutableStateOf(false) }
@@ -637,6 +638,21 @@ fun MediaPlayerScreen(
                                 onClick = {
                                     showMenu = false
                                     showPropertiesDialog = true
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = { Text("Settings") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Settings,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    onSettingsClick?.invoke()
                                 }
                             )
                         }
