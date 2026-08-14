@@ -43,7 +43,8 @@ suspend fun getFilePropertiesData(
 
     // 1. General Properties
     val generalItems = mutableListOf<MetadataItem>()
-    generalItems.add(MetadataItem("File Name", file.name))
+    val displayName = if (file.name == "0" || file.absolutePath == "/storage/emulated/0") "Internal Storage" else if (file.name.isEmpty()) file.absolutePath else file.name
+    generalItems.add(MetadataItem("File Name", displayName))
     generalItems.add(MetadataItem("Location", file.parent ?: file.absolutePath))
 
     if (file.isDirectory) {

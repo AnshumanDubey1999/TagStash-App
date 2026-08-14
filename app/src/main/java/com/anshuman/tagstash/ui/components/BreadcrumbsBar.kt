@@ -5,13 +5,21 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,9 +36,11 @@ fun BreadcrumbsBar(
     currentDir: File,
     onNavigate: (File) -> Unit,
     modifier: Modifier = Modifier,
-    homeDir: File = File("/storage/emulated/0")
+    homeDir: File = File("/storage/emulated/0"),
+    onInfoClick: (() -> Unit)? = null
 ) {
     val breadcrumbs = remember(currentDir, homeDir) { buildBreadcrumbs(currentDir, homeDir) }
+    var showMenu by remember { mutableStateOf(false) }
 
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -39,42 +49,79 @@ fun BreadcrumbsBar(
             containerColor = MaterialTheme.colorScheme.surface
         )
     ) {
-        FlowRow(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.Start,
-            verticalArrangement = Arrangement.Center
+                .padding(start = 16.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            breadcrumbs.forEachIndexed { index, pair ->
-                val name = pair.first
-                val file = pair.second
-                val formattedName = remember(name) { formatBreadcrumbName(name) }
-                val isLast = index == breadcrumbs.lastIndex
+            FlowRow(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(vertical = 6.dp),
+                horizontalArrangement = Arrangement.Start,
+                verticalArrangement = Arrangement.Center
+            ) {
+                breadcrumbs.forEachIndexed { index, pair ->
+                    val name = pair.first
+                    val file = pair.second
+                    val formattedName = remember(name) { formatBreadcrumbName(name) }
+                    val isLast = index == breadcrumbs.lastIndex
 
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(vertical = 2.dp)
-                ) {
-                    Text(
-                        text = formattedName,
-                        color = if (isLast) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                        fontWeight = if (isLast) FontWeight.Bold else FontWeight.Medium,
-                        fontSize = 14.sp,
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .clickable(enabled = !isLast) { onNavigate(file) }
-                            .padding(horizontal = 6.dp, vertical = 4.dp)
-                    )
-
-                    if (!isLast) {
-                        Icon(
-                            imageVector = Icons.Default.ChevronRight,
-                            contentDescription = "Separator",
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-                            modifier = Modifier.size(16.dp)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = formattedName,
+                            color = if (isLast) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            fontWeight = if (isLast) FontWeight.Bold else FontWeight.Medium,
+                            fontSize = 14.sp,
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .clickable(enabled = !isLast) { onNavigate(file) }
+                                .padding(horizontal = 6.dp, vertical = 4.dp)
                         )
+
+                        if (!isLast) {
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = "Separator",
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
+                }
+            }
+
+            Box {
+                IconButton(onClick = { showMenu = true }) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "More options",
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Info") },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.Info,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        },
+                        onClick = {
+                            showMenu = false
+                            onInfoClick?.invoke()
+                        }
+                    )
                 }
             }
         }

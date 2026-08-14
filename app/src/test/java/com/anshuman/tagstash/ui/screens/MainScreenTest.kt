@@ -1,6 +1,7 @@
 package com.anshuman.tagstash.ui.screens
 
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.onRoot
@@ -108,6 +109,8 @@ class MainScreenTest {
         
         // Click on the center to toggle header visibility
         composeTestRule.onRoot().performClick()
+        composeTestRule.mainClock.advanceTimeBy(500)
+        composeTestRule.waitForIdle()
         composeTestRule.onRoot().captureRoboImage("screenshots/image_viewer_screen_with_header.png")
     }
 
@@ -149,6 +152,56 @@ class MainScreenTest {
         
         // Click in the center to toggle controls visibility
         composeTestRule.onRoot().performClick()
+        composeTestRule.mainClock.advanceTimeBy(500)
+        composeTestRule.waitForIdle()
         composeTestRule.onRoot().captureRoboImage("screenshots/video_player_screen_with_controls.png")
+    }
+
+    @Test
+    fun testMainScreenFolderPropertiesDialog() {
+        composeTestRule.setContent {
+            TagStashTheme {
+                MainScreen(
+                    permissionGranted = true,
+                    onRequestPermission = {},
+                    homeDirectory = testDataDir
+                )
+            }
+        }
+        composeTestRule.onNodeWithContentDescription("More options").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Info").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onRoot().captureRoboImage("screenshots/main_screen_folder_properties_dialog.png")
+    }
+
+    @Test
+    fun testMediaPlayerScreenPropertiesDialog() {
+        val pngsFolder = File(testDataDir, "images/pngs")
+        val file1 = File(pngsFolder, "1.png")
+
+        composeTestRule.setContent {
+            TagStashTheme {
+                MediaPlayerScreen(
+                    file = file1,
+                    globalLoopEnabled = true,
+                    onToggleGlobalLoop = {},
+                    onClose = {},
+                    onNavigateToMedia = {}
+                )
+            }
+        }
+
+        // Toggle overlays
+        composeTestRule.onRoot().performClick()
+        composeTestRule.mainClock.advanceTimeBy(500)
+        composeTestRule.waitForIdle()
+        // Click 3-dot overflow menu in header
+        composeTestRule.onNodeWithContentDescription("More options").performClick()
+        composeTestRule.waitForIdle()
+        // Click Info
+        composeTestRule.onNodeWithText("Info").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onRoot().captureRoboImage("screenshots/media_player_properties_dialog.png")
     }
 }

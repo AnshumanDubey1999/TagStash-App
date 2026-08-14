@@ -26,6 +26,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import com.anshuman.tagstash.ui.components.FilePropertiesDialog
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -77,6 +78,8 @@ fun MediaPlayerScreen(
 ) {
     val context = LocalContext.current
     var showOverlays by rememberSaveable { mutableStateOf(false) }
+    var showPropertiesDialog by rememberSaveable { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
 
     // Sibling Media and Navigation Logic
     val siblingMedia = remember(file) { getSiblingMedia(file) }
@@ -546,6 +549,36 @@ fun MediaPlayerScreen(
                             fontSize = 12.sp
                         )
                     }
+
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "More options",
+                                tint = Color.White
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Info") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Info,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    showPropertiesDialog = true
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -669,6 +702,13 @@ fun MediaPlayerScreen(
                 }
             }
         }
+    }
+
+    if (showPropertiesDialog) {
+        FilePropertiesDialog(
+            file = file,
+            onDismissRequest = { showPropertiesDialog = false }
+        )
     }
 }
 

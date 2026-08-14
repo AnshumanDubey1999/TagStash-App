@@ -123,8 +123,9 @@ fun FilePropertiesDialog(
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
+                                val displayName = if (file.name == "0" || file.absolutePath == "/storage/emulated/0") "Internal Storage" else if (file.name.isEmpty()) file.absolutePath else file.name
                                 Text(
-                                    text = "File Properties",
+                                    text = if (file.isDirectory) "Folder Properties" else "File Properties",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 18.sp
@@ -132,7 +133,7 @@ fun FilePropertiesDialog(
                                     color = Color.White
                                 )
                                 Text(
-                                    text = file.name,
+                                    text = displayName,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color(0xFFA0A0A0),
                                     maxLines = 1,

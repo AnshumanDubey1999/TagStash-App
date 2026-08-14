@@ -123,7 +123,10 @@ fun MainScreen(
                 BreadcrumbsBar(
                     currentDir = currentDirectory,
                     onNavigate = { currentDirectory = it },
-                    homeDir = homeDirectory
+                    homeDir = homeDirectory,
+                    onInfoClick = {
+                        selectedPropertiesFile = currentDirectory
+                    }
                 )
             }
             PullToRefreshBox(
