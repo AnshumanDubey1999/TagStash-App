@@ -31,9 +31,17 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import com.anshuman.tagstash.data.clipboard.AppClipboard
 import com.anshuman.tagstash.data.clipboard.ClipboardOpType
+import com.anshuman.tagstash.data.database.AuditLogDatabaseHelper
+import com.anshuman.tagstash.data.database.RecycleBinDatabaseHelper
+import com.anshuman.tagstash.data.model.AuditActionType
+import com.anshuman.tagstash.data.model.AuditItemOutcome
+import com.anshuman.tagstash.data.model.AuditLogEntry
+import com.anshuman.tagstash.data.model.AuditLogItemDetail
 import com.anshuman.tagstash.ui.components.CapacityLimitDialog
 import com.anshuman.tagstash.ui.components.ClipboardDialog
+import com.anshuman.tagstash.ui.components.DeleteConfirmationDialog
 import com.anshuman.tagstash.ui.components.FilePropertiesDialog
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -108,6 +116,8 @@ fun MediaPlayerScreen(
     var scale by remember(file) { mutableStateOf(1.0f) }
     var offset by remember(file) { mutableStateOf(Offset.Zero) }
     var videoDimensions by remember(file) { mutableStateOf<ImageDimensions?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     // Singleton ExoPlayer instance for this screen
     val exoPlayer = remember {
@@ -642,6 +652,21 @@ fun MediaPlayerScreen(
                             )
 
                             DropdownMenuItem(
+                                text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.DeleteOutline,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    showDeleteDialog = true
+                                }
+                            )
+
+                            DropdownMenuItem(
                                 text = { Text("Settings") },
                                 leadingIcon = {
                                     Icon(
@@ -799,6 +824,42 @@ fun MediaPlayerScreen(
 
     if (showCapacityLimitDialog) {
         CapacityLimitDialog(onDismiss = { showCapacityLimitDialog = false })
+    }
+
+    if (showDeleteDialog) {
+        DeleteConfirmationDialog(
+            files = listOf(file),
+            onConfirmDelete = {
+                showDeleteDialog = false
+                coroutineScope.launch {
+                    val trashed = RecycleBinDatabaseHelper.getInstance(context).moveToRecycleBin(listOf(file), context)
+                    if (trashed.isNotEmpty()) {
+                        val auditLogHelper = AuditLogDatabaseHelper.getInstance(context)
+                        val itemDetail = AuditLogItemDetail(
+                            sourcePath = file.absolutePath,
+                            destinationPath = trashed.first().trashedPath,
+                            command = "DELETE",
+                            outcome = AuditItemOutcome.TRASHED,
+                            fileName = file.name,
+                            fileSize = trashed.first().fileSize,
+                            isDirectory = false
+                        )
+                        auditLogHelper.insertLog(
+                            AuditLogEntry(
+                                timestamp = System.currentTimeMillis(),
+                                actionType = AuditActionType.DELETE,
+                                summary = "Deleted ${file.name} to Recycle Bin",
+                                destinationDirectory = "Recycle Bin",
+                                totalItems = 1,
+                                items = listOf(itemDetail)
+                            )
+                        )
+                    }
+                    onClose()
+                }
+            },
+            onDismissRequest = { showDeleteDialog = false }
+        )
     }
 }
 

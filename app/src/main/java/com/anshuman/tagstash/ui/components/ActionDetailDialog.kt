@@ -11,7 +11,9 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.anshuman.tagstash.data.model.AuditActionType
 import com.anshuman.tagstash.data.model.AuditItemOutcome
 import com.anshuman.tagstash.data.model.AuditLogEntry
 import com.anshuman.tagstash.data.model.AuditLogItemDetail
@@ -67,19 +70,31 @@ fun ActionDetailDialog(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.weight(1f)
                         ) {
+                            val actionIcon = when (entry.actionType) {
+                                AuditActionType.PASTE -> Icons.Default.ContentPaste
+                                AuditActionType.DELETE -> Icons.Default.DeleteOutline
+                                AuditActionType.RESTORE -> Icons.Default.Restore
+                                AuditActionType.DELETE_PERMANENT, AuditActionType.AUTO_DELETE -> Icons.Default.DeleteForever
+                            }
+                            val actionTint = if (entry.actionType == AuditActionType.PASTE || entry.actionType == AuditActionType.RESTORE) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.error
+                            }
+
                             Box(
                                 modifier = Modifier
                                     .size(40.dp)
                                     .background(
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                                        actionTint.copy(alpha = 0.15f),
                                         RoundedCornerShape(10.dp)
                                     ),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.ContentPaste,
+                                    imageVector = actionIcon,
                                     contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
+                                    tint = actionTint,
                                     modifier = Modifier.size(24.dp)
                                 )
                             }
@@ -286,8 +301,13 @@ private fun ActionDetailItemCard(item: AuditLogItemDetail) {
                 Spacer(modifier = Modifier.width(8.dp))
 
                 // Badges
-                val isCut = item.command.equals("CUT", ignoreCase = true)
-                val cmdColor = if (isCut) Color(0xFFFFB74D) else Color(0xFF4FC3F7)
+                val cmdColor = when (item.command.uppercase()) {
+                    "CUT" -> Color(0xFFFFB74D)
+                    "COPY" -> Color(0xFF4FC3F7)
+                    "DELETE" -> Color(0xFFEF5350)
+                    "RESTORE" -> Color(0xFF81C784)
+                    else -> Color(0xFFA0A0A0)
+                }
                 Surface(
                     shape = RoundedCornerShape(4.dp),
                     color = cmdColor.copy(alpha = 0.15f),
@@ -310,6 +330,9 @@ private fun ActionDetailItemCard(item: AuditLogItemDetail) {
                     AuditItemOutcome.REPLACED -> "REPLACED" to Color(0xFFFF8A65)
                     AuditItemOutcome.RENAMED_COPY -> "RENAMED" to Color(0xFFBA68C8)
                     AuditItemOutcome.SKIPPED -> "SKIPPED" to Color(0xFF9E9E9E)
+                    AuditItemOutcome.TRASHED -> "TRASHED" to Color(0xFFE57373)
+                    AuditItemOutcome.RESTORED -> "RESTORED" to Color(0xFF81C784)
+                    AuditItemOutcome.PERMANENTLY_DELETED, AuditItemOutcome.AUTO_DELETED_EXPIRED -> "DELETED" to Color(0xFFE57373)
                 }
                 Surface(
                     shape = RoundedCornerShape(4.dp),

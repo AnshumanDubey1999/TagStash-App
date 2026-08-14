@@ -1,7 +1,11 @@
 package com.anshuman.tagstash.data.model
 
 enum class AuditActionType {
-    PASTE
+    PASTE,
+    DELETE,
+    RESTORE,
+    DELETE_PERMANENT,
+    AUTO_DELETE
 }
 
 enum class AuditItemOutcome {
@@ -9,7 +13,11 @@ enum class AuditItemOutcome {
     MOVED,
     REPLACED,
     RENAMED_COPY,
-    SKIPPED
+    SKIPPED,
+    TRASHED,
+    RESTORED,
+    PERMANENTLY_DELETED,
+    AUTO_DELETED_EXPIRED
 }
 
 data class AuditLogItemDetail(

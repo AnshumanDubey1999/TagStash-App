@@ -34,12 +34,14 @@ import com.anshuman.tagstash.ui.components.CapacityLimitDialog
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.FloatingActionButton
 import com.anshuman.tagstash.data.clipboard.AppClipboard
 import com.anshuman.tagstash.data.clipboard.ClipboardOpType
 import com.anshuman.tagstash.data.database.AuditLogDatabaseHelper
+import com.anshuman.tagstash.data.database.RecycleBinDatabaseHelper
 import com.anshuman.tagstash.data.model.AuditActionType
 import com.anshuman.tagstash.data.model.AuditItemOutcome
 import com.anshuman.tagstash.data.model.AuditLogEntry
@@ -55,6 +57,7 @@ import com.anshuman.tagstash.data.utils.openFileWithOS
 import com.anshuman.tagstash.ui.components.BreadcrumbsBar
 import com.anshuman.tagstash.ui.components.ClipboardDialog
 import com.anshuman.tagstash.ui.components.ConflictResolutionDialog
+import com.anshuman.tagstash.ui.components.DeleteConfirmationDialog
 import com.anshuman.tagstash.ui.components.EmptyDirectoryView
 import com.anshuman.tagstash.ui.components.ErrorView
 import com.anshuman.tagstash.ui.components.FilePropertiesDialog
@@ -96,28 +99,29 @@ fun MainScreen(
     var filesList by remember { mutableStateOf<List<FileItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var activeMediaPlayerFile by rememberSaveable(stateSaver = NullableFileSaver) { mutableStateOf<File?>(null) }
+    var activeMediaPlayerFile by rememberSaveable(initialDirectory, stateSaver = NullableFileSaver) { mutableStateOf<File?>(null) }
     var globalLoopEnabled by rememberSaveable { mutableStateOf(true) }
     var isRefreshing by remember { mutableStateOf(false) }
     var refreshTrigger by remember { mutableStateOf(0) }
-    var selectedPropertiesFile by rememberSaveable(stateSaver = NullableFileSaver) { mutableStateOf<File?>(null) }
+    var selectedPropertiesFile by rememberSaveable(initialDirectory, stateSaver = NullableFileSaver) { mutableStateOf<File?>(null) }
 
     // Selection Mode State
-    var isSelectionMode by rememberSaveable { mutableStateOf(false) }
-    var selectedFiles by rememberSaveable(stateSaver = FileSetSaver) { mutableStateOf(emptySet<File>()) }
-    var showSelectionPropertiesDialog by rememberSaveable { mutableStateOf(false) }
+    var isSelectionMode by rememberSaveable(initialDirectory) { mutableStateOf(false) }
+    var selectedFiles by rememberSaveable(initialDirectory, stateSaver = FileSetSaver) { mutableStateOf(emptySet<File>()) }
+    var showSelectionPropertiesDialog by rememberSaveable(initialDirectory) { mutableStateOf(false) }
 
     // Screen Navigation State (MAIN, SETTINGS, PAST_ACTIONS)
-    var currentScreenView by rememberSaveable { mutableStateOf("MAIN") }
+    var currentScreenView by rememberSaveable(initialDirectory) { mutableStateOf("MAIN") }
 
     // Clipboard and Paste State
     val coroutineScope = rememberCoroutineScope()
-    var showClipboardDialog by rememberSaveable { mutableStateOf(false) }
-    var showCapacityLimitDialog by rememberSaveable { mutableStateOf(false) }
+    var showClipboardDialog by rememberSaveable(initialDirectory) { mutableStateOf(false) }
+    var showCapacityLimitDialog by rememberSaveable(initialDirectory) { mutableStateOf(false) }
     var activeConflictFile by remember { mutableStateOf<File?>(null) }
     var conflictDeferred by remember { mutableStateOf<CompletableDeferred<Pair<ConflictResolution, Boolean>>?>(null) }
     var isPasting by remember { mutableStateOf(false) }
     var isContextMenuOpen by remember { mutableStateOf(false) }
+    var filesPendingDelete by remember { mutableStateOf<List<File>?>(null) }
 
     fun cutSelectedFiles() {
         val files = selectedFiles.toList()
@@ -365,6 +369,11 @@ fun MainScreen(
                         onCopySelected = {
                             copySelectedFiles()
                         },
+                        onDeleteSelected = {
+                            if (selectedFiles.isNotEmpty()) {
+                                filesPendingDelete = selectedFiles.toList()
+                            }
+                        },
                         onPasteClick = {
                             executePaste()
                         },
@@ -482,6 +491,9 @@ fun MainScreen(
                                                 showCapacityLimitDialog = true
                                             }
                                         },
+                                        onDeleteClick = {
+                                            filesPendingDelete = listOf(targetFile)
+                                        },
                                         onContextMenuVisibilityChanged = {
                                             isContextMenuOpen = it
                                         }
@@ -589,6 +601,24 @@ fun MainScreen(
 
                                     IconButton(
                                         onClick = {
+                                            if (selectedFiles.isNotEmpty()) {
+                                                filesPendingDelete = selectedFiles.toList()
+                                            }
+                                        },
+                                        enabled = selectedFiles.isNotEmpty(),
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.DeleteOutline,
+                                            contentDescription = "Delete selected files",
+                                            tint = if (selectedFiles.isNotEmpty()) MaterialTheme.colorScheme.error else Color(0xFF666666)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(4.dp))
+
+                                    IconButton(
+                                        onClick = {
                                             isSelectionMode = false
                                             selectedFiles = emptySet()
                                         },
@@ -645,6 +675,50 @@ fun MainScreen(
 
     if (showCapacityLimitDialog) {
         CapacityLimitDialog(onDismiss = { showCapacityLimitDialog = false })
+    }
+
+    if (!filesPendingDelete.isNullOrEmpty()) {
+        DeleteConfirmationDialog(
+            files = filesPendingDelete!!,
+            onConfirmDelete = {
+                val toDelete = filesPendingDelete!!
+                filesPendingDelete = null
+                coroutineScope.launch {
+                    val trashed = RecycleBinDatabaseHelper.getInstance(context).moveToRecycleBin(toDelete, context)
+                    if (trashed.isNotEmpty()) {
+                        val auditLogHelper = AuditLogDatabaseHelper.getInstance(context)
+                        val details = trashed.map {
+                            AuditLogItemDetail(
+                                sourcePath = it.originalPath,
+                                destinationPath = it.trashedPath,
+                                command = "DELETE",
+                                outcome = AuditItemOutcome.TRASHED,
+                                fileName = it.fileName,
+                                fileSize = it.fileSize,
+                                isDirectory = it.isDirectory
+                            )
+                        }
+                        val summaryText = if (trashed.size == 1) "Deleted ${trashed.first().fileName} to Recycle Bin" else "Deleted ${trashed.size} items to Recycle Bin"
+                        auditLogHelper.insertLog(
+                            AuditLogEntry(
+                                timestamp = System.currentTimeMillis(),
+                                actionType = AuditActionType.DELETE,
+                                summary = summaryText,
+                                destinationDirectory = "Recycle Bin",
+                                totalItems = trashed.size,
+                                items = details
+                            )
+                        )
+                    }
+                    if (isSelectionMode) {
+                        isSelectionMode = false
+                        selectedFiles = emptySet()
+                    }
+                    refreshTrigger++
+                }
+            },
+            onDismissRequest = { filesPendingDelete = null }
+        )
     }
 
     if (activeMediaPlayerFile != null) {

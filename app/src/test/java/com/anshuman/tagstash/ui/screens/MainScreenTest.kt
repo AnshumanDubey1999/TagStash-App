@@ -1,6 +1,7 @@
 package com.anshuman.tagstash.ui.screens
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithText
@@ -11,6 +12,9 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.onRoot
 import com.anshuman.tagstash.data.clipboard.AppClipboard
 import com.anshuman.tagstash.data.clipboard.ClipboardOpType
+import com.anshuman.tagstash.data.database.AuditLogDatabaseHelper
+import com.anshuman.tagstash.data.database.RecycleBinDatabaseHelper
+import com.anshuman.tagstash.ui.components.DeleteConfirmationDialog
 import com.anshuman.tagstash.ui.theme.TagStashTheme
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.After
@@ -705,6 +709,133 @@ class MainScreenTest {
             sampleFile.delete()
             tempDir.deleteRecursively()
             kotlinx.coroutines.runBlocking { dbHelper.clearAllLogs() }
+        }
+    }
+
+    @Test
+    fun testDeleteConfirmationDialogSingleFile() {
+        var confirmed = false
+        val dummyFile = File(testDataDir, "images/pngs/1.png")
+        composeTestRule.setContent {
+            TagStashTheme {
+                DeleteConfirmationDialog(
+                    files = listOf(dummyFile),
+                    onConfirmDelete = { confirmed = true },
+                    onDismissRequest = {}
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Delete File").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Click here if you are sure you want to delete this item").assertIsDisplayed()
+        composeTestRule.onNodeWithText("1.png").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Delete").assertIsDisplayed()
+        composeTestRule.onRoot().captureRoboImage("screenshots/delete_confirmation_dialog_single.png")
+
+        composeTestRule.onNode(isToggleable()).performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithContentDescription("Confirm Delete").performClick()
+        composeTestRule.waitForIdle()
+        org.junit.Assert.assertTrue(confirmed)
+    }
+
+    @Test
+    fun testDeleteConfirmationDialogMultipleFiles() {
+        val file1 = File(testDataDir, "images/pngs/1.png")
+        val file2 = File(testDataDir, "images/jpgs/1.jpg")
+        composeTestRule.setContent {
+            TagStashTheme {
+                DeleteConfirmationDialog(
+                    files = listOf(file1, file2),
+                    onConfirmDelete = {},
+                    onDismissRequest = {}
+                )
+            }
+        }
+
+        composeTestRule.onNodeWithText("Delete Files").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Click here if you are sure you want to delete these 2 items").assertIsDisplayed()
+        composeTestRule.onNodeWithText("1.png").assertIsDisplayed()
+        composeTestRule.onNodeWithText("1.jpg").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Delete (2)").assertIsDisplayed()
+        composeTestRule.onRoot().captureRoboImage("screenshots/delete_confirmation_dialog_multiple.png")
+    }
+
+    @Test
+    fun testDeleteFileMovesToRecycleBinAndLogsAudit() {
+        val tempDir = File(testDataDir, "temp_delete_test_folder")
+        if (!tempDir.exists()) tempDir.mkdirs()
+        val fileToDelete = File(tempDir, "to_be_deleted.txt").apply {
+            writeText("Delete me please")
+        }
+
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val recycleBinHelper = RecycleBinDatabaseHelper.getInstance(context)
+        val auditHelper = AuditLogDatabaseHelper.getInstance(context)
+
+        try {
+            kotlinx.coroutines.runBlocking {
+                recycleBinHelper.clearAll()
+                auditHelper.clearAllLogs()
+            }
+
+            composeTestRule.setContent {
+                TagStashTheme {
+                    MainScreen(
+                        permissionGranted = true,
+                        onRequestPermission = {},
+                        homeDirectory = testDataDir,
+                        initialDirectory = tempDir
+                    )
+                }
+            }
+
+            // Wait for file list to load
+            composeTestRule.waitUntil(5000) {
+                composeTestRule.onAllNodesWithText("to_be_deleted.txt").fetchSemanticsNodes().isNotEmpty()
+            }
+
+            // Long click file to open context menu
+            composeTestRule.onNodeWithText("to_be_deleted.txt").performTouchInput { longClick() }
+            composeTestRule.waitForIdle()
+
+            // Click Delete in context menu
+            composeTestRule.onNodeWithText("Delete").performClick()
+            composeTestRule.waitForIdle()
+
+            // Verify Delete Confirmation Dialog is shown
+            composeTestRule.onNodeWithText("Delete File").assertIsDisplayed()
+            composeTestRule.onNodeWithText("Click here if you are sure you want to delete this item").assertIsDisplayed()
+
+            // Click checkbox row to confirm
+            composeTestRule.onNode(isToggleable()).performClick()
+            composeTestRule.waitForIdle()
+
+            // Click Delete button in dialog
+            composeTestRule.onNodeWithContentDescription("Confirm Delete").performClick()
+            composeTestRule.waitForIdle()
+
+            // Wait for file to be moved to recycle bin and audit log to be written
+            composeTestRule.waitUntil(5000) {
+                !fileToDelete.exists() && kotlinx.coroutines.runBlocking { auditHelper.getAllLogs().isNotEmpty() }
+            }
+            org.junit.Assert.assertFalse(fileToDelete.exists())
+
+            // Verify recycle bin item and audit log
+            val trashed = kotlinx.coroutines.runBlocking { recycleBinHelper.getAllItems() }
+            org.junit.Assert.assertEquals(1, trashed.size)
+            org.junit.Assert.assertEquals("to_be_deleted.txt", trashed.first().fileName)
+
+            val logs = kotlinx.coroutines.runBlocking { auditHelper.getAllLogs() }
+            org.junit.Assert.assertEquals(1, logs.size)
+            org.junit.Assert.assertEquals(com.anshuman.tagstash.data.model.AuditActionType.DELETE, logs.first().actionType)
+        } finally {
+            fileToDelete.delete()
+            tempDir.deleteRecursively()
+            kotlinx.coroutines.runBlocking {
+                recycleBinHelper.clearAll()
+                auditHelper.clearAllLogs()
+            }
         }
     }
 }

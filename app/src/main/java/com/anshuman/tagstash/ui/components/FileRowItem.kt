@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
@@ -49,12 +50,14 @@ import com.anshuman.tagstash.data.utils.getIconColor
 fun FileRowItem(
     item: FileItem,
     onClick: () -> Unit,
-    onInfoClick: (() -> Unit)? = null,
+    onLongClick: () -> Unit = {},
     isSelectionMode: Boolean = false,
     isSelected: Boolean = false,
     onSelectClick: (() -> Unit)? = null,
     onCutClick: (() -> Unit)? = null,
     onCopyClick: (() -> Unit)? = null,
+    onDeleteClick: (() -> Unit)? = null,
+    onInfoClick: (() -> Unit)? = null,
     onContextMenuVisibilityChanged: ((Boolean) -> Unit)? = null
 ) {
     val fileIcon = remember(item) { getFileIcon(item) }
@@ -202,6 +205,21 @@ fun FileRowItem(
                         showContextMenu = false
                         onContextMenuVisibilityChanged?.invoke(false)
                         onCopyClick?.invoke()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.DeleteOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    },
+                    onClick = {
+                        showContextMenu = false
+                        onContextMenuVisibilityChanged?.invoke(false)
+                        onDeleteClick?.invoke()
                     }
                 )
                 DropdownMenuItem(

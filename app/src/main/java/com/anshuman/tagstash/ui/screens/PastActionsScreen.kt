@@ -12,9 +12,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.anshuman.tagstash.data.database.AuditLogDatabaseHelper
+import com.anshuman.tagstash.data.model.AuditActionType
 import com.anshuman.tagstash.data.model.AuditItemOutcome
 import com.anshuman.tagstash.data.model.AuditLogEntry
 import com.anshuman.tagstash.data.utils.formatLastModified
@@ -276,19 +280,38 @@ private fun PastActionCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val actionIcon = when (entry.actionType) {
+                AuditActionType.PASTE -> Icons.Default.ContentPaste
+                AuditActionType.DELETE -> Icons.Default.DeleteOutline
+                AuditActionType.RESTORE -> Icons.Default.Restore
+                AuditActionType.DELETE_PERMANENT, AuditActionType.AUTO_DELETE -> Icons.Default.DeleteForever
+            }
+            val actionTint = if (entry.actionType == AuditActionType.PASTE || entry.actionType == AuditActionType.RESTORE) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.error
+            }
+
+            val actionDescription = when (entry.actionType) {
+                AuditActionType.PASTE -> "Paste Action"
+                AuditActionType.DELETE -> "Delete Action"
+                AuditActionType.RESTORE -> "Restore Action"
+                AuditActionType.DELETE_PERMANENT, AuditActionType.AUTO_DELETE -> "Purge Action"
+            }
+
             Box(
                 modifier = Modifier
                     .size(44.dp)
                     .background(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                        actionTint.copy(alpha = 0.15f),
                         RoundedCornerShape(12.dp)
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.ContentPaste,
-                    contentDescription = "Paste Action",
-                    tint = MaterialTheme.colorScheme.primary,
+                    imageVector = actionIcon,
+                    contentDescription = actionDescription,
+                    tint = actionTint,
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -306,9 +329,16 @@ private fun PastActionCard(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 val itemLabel = if (entry.totalItems == 1) "1 item" else "${entry.totalItems} items"
-                val destLabel = if (entry.destinationDirectory == "/storage/emulated/0") "Internal Storage" else entry.destinationDirectory.substringAfterLast('/')
+                val destLabel = if (entry.destinationDirectory == "/storage/emulated/0") {
+                    "Internal Storage"
+                } else if (entry.destinationDirectory.contains('/')) {
+                    entry.destinationDirectory.substringAfterLast('/')
+                } else {
+                    entry.destinationDirectory
+                }
+                val preposition = if (entry.actionType == AuditActionType.DELETE) "To" else "To"
                 Text(
-                    text = "$itemLabel • To: $destLabel",
+                    text = "$itemLabel • $preposition: $destLabel",
                     fontSize = 12.sp,
                     color = Color(0xFFCCCCCC),
                     maxLines = 1,
@@ -323,6 +353,9 @@ private fun PastActionCard(
                 val replacedCount = entry.items.count { it.outcome == AuditItemOutcome.REPLACED }
                 val renamedCount = entry.items.count { it.outcome == AuditItemOutcome.RENAMED_COPY }
                 val skippedCount = entry.items.count { it.outcome == AuditItemOutcome.SKIPPED }
+                val trashedCount = entry.items.count { it.outcome == AuditItemOutcome.TRASHED }
+                val restoredCount = entry.items.count { it.outcome == AuditItemOutcome.RESTORED }
+                val deletedCount = entry.items.count { it.outcome == AuditItemOutcome.PERMANENTLY_DELETED || it.outcome == AuditItemOutcome.AUTO_DELETED_EXPIRED }
 
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -342,6 +375,15 @@ private fun PastActionCard(
                     }
                     if (skippedCount > 0) {
                         CountBadge(label = "$skippedCount skipped", color = Color(0xFF9E9E9E))
+                    }
+                    if (trashedCount > 0) {
+                        CountBadge(label = "$trashedCount trashed", color = Color(0xFFE57373))
+                    }
+                    if (restoredCount > 0) {
+                        CountBadge(label = "$restoredCount restored", color = Color(0xFF81C784))
+                    }
+                    if (deletedCount > 0) {
+                        CountBadge(label = "$deletedCount deleted", color = Color(0xFFE57373))
                     }
                 }
             }

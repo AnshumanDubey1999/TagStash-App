@@ -10,6 +10,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.ContentPasteGo
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Deselect
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
@@ -53,6 +54,7 @@ fun BreadcrumbsBar(
     onSelectAllToggle: () -> Unit = {},
     onCutSelected: (() -> Unit)? = null,
     onCopySelected: (() -> Unit)? = null,
+    onDeleteSelected: (() -> Unit)? = null,
     onPasteClick: (() -> Unit)? = null,
     onClipboardClick: (() -> Unit)? = null,
     onInfoClick: (() -> Unit)? = null,
@@ -188,6 +190,22 @@ fun BreadcrumbsBar(
                             onClick = {
                                 showMenu = false
                                 onCopySelected?.invoke()
+                            }
+                        )
+
+                        DropdownMenuItem(
+                            text = { Text("Delete", color = if (isActionEnabled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)) },
+                            enabled = isActionEnabled,
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.DeleteOutline,
+                                    contentDescription = null,
+                                    tint = if (isActionEnabled) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                )
+                            },
+                            onClick = {
+                                showMenu = false
+                                onDeleteSelected?.invoke()
                             }
                         )
                     }
