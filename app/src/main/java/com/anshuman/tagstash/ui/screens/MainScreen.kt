@@ -29,17 +29,27 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anshuman.tagstash.data.clipboard.AppClipboard
+import com.anshuman.tagstash.data.clipboard.ClipboardOpType
 import com.anshuman.tagstash.data.model.FileItem
-import com.anshuman.tagstash.data.utils.openFileWithOS
+import com.anshuman.tagstash.data.utils.ConflictResolution
+import com.anshuman.tagstash.data.utils.copyFileOrDirectory
+import com.anshuman.tagstash.data.utils.generateCopyFileName
 import com.anshuman.tagstash.data.utils.isImage
 import com.anshuman.tagstash.data.utils.isVideo
+import com.anshuman.tagstash.data.utils.moveFileOrDirectory
+import com.anshuman.tagstash.data.utils.openFileWithOS
 import com.anshuman.tagstash.ui.components.BreadcrumbsBar
+import com.anshuman.tagstash.ui.components.ClipboardDialog
+import com.anshuman.tagstash.ui.components.ConflictResolutionDialog
 import com.anshuman.tagstash.ui.components.EmptyDirectoryView
 import com.anshuman.tagstash.ui.components.ErrorView
 import com.anshuman.tagstash.ui.components.FilePropertiesDialog
 import com.anshuman.tagstash.ui.components.FileRowItem
 import com.anshuman.tagstash.ui.components.PermissionRequestView
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -81,6 +91,83 @@ fun MainScreen(
     var isSelectionMode by rememberSaveable { mutableStateOf(false) }
     var selectedFiles by rememberSaveable(stateSaver = FileSetSaver) { mutableStateOf(emptySet<File>()) }
     var showSelectionPropertiesDialog by rememberSaveable { mutableStateOf(false) }
+
+    // Clipboard and Paste State
+    val coroutineScope = rememberCoroutineScope()
+    var showClipboardDialog by rememberSaveable { mutableStateOf(false) }
+    var activeConflictFile by remember { mutableStateOf<File?>(null) }
+    var conflictDeferred by remember { mutableStateOf<CompletableDeferred<Pair<ConflictResolution, Boolean>>?>(null) }
+    var isPasting by remember { mutableStateOf(false) }
+
+    fun executePaste() {
+        if (AppClipboard.items.isEmpty() || isPasting) return
+        coroutineScope.launch {
+            isPasting = true
+            var batchResolution: ConflictResolution? = null
+            val itemsToPaste = AppClipboard.items.toList()
+
+            for (item in itemsToPaste) {
+                val sourceFile = item.file
+                if (!sourceFile.exists()) continue
+
+                // If cutting file in the same directory where it already resides, skip
+                if (sourceFile.parentFile?.absolutePath == currentDirectory.absolutePath && item.opType == ClipboardOpType.CUT) {
+                    continue
+                }
+
+                var targetFile = File(currentDirectory, sourceFile.name)
+                if (targetFile.exists()) {
+                    val resolution = if (batchResolution != null) {
+                        batchResolution
+                    } else {
+                        val deferred = CompletableDeferred<Pair<ConflictResolution, Boolean>>()
+                        conflictDeferred = deferred
+                        activeConflictFile = sourceFile
+                        val (chosenResolution, applyToAll) = deferred.await()
+                        activeConflictFile = null
+                        conflictDeferred = null
+                        if (applyToAll) {
+                            batchResolution = chosenResolution
+                        }
+                        chosenResolution
+                    }
+
+                    when (resolution) {
+                        ConflictResolution.REPLACE -> {
+                            if (item.opType == ClipboardOpType.CUT) {
+                                targetFile.deleteRecursively()
+                                moveFileOrDirectory(sourceFile, targetFile)
+                            } else {
+                                copyFileOrDirectory(sourceFile, targetFile)
+                            }
+                        }
+                        ConflictResolution.KEEP_BOTH -> {
+                            val newName = generateCopyFileName(currentDirectory, sourceFile.name)
+                            targetFile = File(currentDirectory, newName)
+                            if (item.opType == ClipboardOpType.CUT) {
+                                moveFileOrDirectory(sourceFile, targetFile)
+                            } else {
+                                copyFileOrDirectory(sourceFile, targetFile)
+                            }
+                        }
+                        ConflictResolution.SKIP -> {
+                            // Skip pasting this item
+                        }
+                    }
+                } else {
+                    if (item.opType == ClipboardOpType.CUT) {
+                        moveFileOrDirectory(sourceFile, targetFile)
+                    } else {
+                        copyFileOrDirectory(sourceFile, targetFile)
+                    }
+                }
+            }
+
+            AppClipboard.clear()
+            isPasting = false
+            refreshTrigger++
+        }
+    }
 
     // Clear selection mode when currentDirectory changes
     LaunchedEffect(currentDirectory) {
@@ -168,6 +255,7 @@ fun MainScreen(
                     isSelectionMode = isSelectionMode,
                     selectedCount = selectedFiles.size,
                     isAllSelected = isAllSelected,
+                    clipboardCount = AppClipboard.size,
                     onSelectModeToggle = {
                         isSelectionMode = true
                         selectedFiles = emptySet()
@@ -178,6 +266,12 @@ fun MainScreen(
                         } else {
                             selectedFiles = filesList.map { File(it.path) }.toSet()
                         }
+                    },
+                    onPasteClick = {
+                        executePaste()
+                    },
+                    onClipboardClick = {
+                        showClipboardDialog = true
                     },
                     onInfoClick = {
                         if (isSelectionMode) {
@@ -344,6 +438,26 @@ fun MainScreen(
         FilePropertiesDialog(
             files = selectedFiles.toList(),
             onDismissRequest = { showSelectionPropertiesDialog = false }
+        )
+    }
+
+    if (activeConflictFile != null) {
+        ConflictResolutionDialog(
+            conflictingFile = activeConflictFile!!,
+            onResolve = { resolution, applyToAll ->
+                conflictDeferred?.complete(Pair(resolution, applyToAll))
+            },
+            onDismissRequest = {
+                conflictDeferred?.complete(Pair(ConflictResolution.SKIP, false))
+            }
+        )
+    }
+
+    if (showClipboardDialog) {
+        ClipboardDialog(
+            clipboardItems = AppClipboard.items,
+            onClearAll = { AppClipboard.clear() },
+            onDismissRequest = { showClipboardDialog = false }
         )
     }
 

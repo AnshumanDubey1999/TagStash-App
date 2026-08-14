@@ -23,9 +23,16 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.ContentPasteGo
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import com.anshuman.tagstash.data.clipboard.AppClipboard
+import com.anshuman.tagstash.data.clipboard.ClipboardOpType
+import com.anshuman.tagstash.ui.components.CapacityLimitDialog
+import com.anshuman.tagstash.ui.components.ClipboardDialog
 import com.anshuman.tagstash.ui.components.FilePropertiesDialog
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,6 +86,8 @@ fun MediaPlayerScreen(
     val context = LocalContext.current
     var showOverlays by rememberSaveable { mutableStateOf(false) }
     var showPropertiesDialog by rememberSaveable { mutableStateOf(false) }
+    var showClipboardDialog by rememberSaveable { mutableStateOf(false) }
+    var showCapacityLimitDialog by rememberSaveable { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
 
     // Sibling Media and Navigation Logic
@@ -564,6 +573,59 @@ fun MediaPlayerScreen(
                             onDismissRequest = { showMenu = false }
                         ) {
                             DropdownMenuItem(
+                                text = { Text("Cut") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCut,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    val added = AppClipboard.addItem(file, ClipboardOpType.CUT)
+                                    if (!added) {
+                                        showCapacityLimitDialog = true
+                                    }
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = { Text("Copy") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    val added = AppClipboard.addItem(file, ClipboardOpType.COPY)
+                                    if (!added) {
+                                        showCapacityLimitDialog = true
+                                    }
+                                }
+                            )
+
+                            if (AppClipboard.items.isNotEmpty()) {
+                                DropdownMenuItem(
+                                    text = { Text("Clipboard (${AppClipboard.size})") },
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = Icons.Default.ContentPasteGo,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.primary
+                                        )
+                                    },
+                                    onClick = {
+                                        showMenu = false
+                                        showClipboardDialog = true
+                                    }
+                                )
+                            }
+
+                            DropdownMenuItem(
                                 text = { Text("Info") },
                                 leadingIcon = {
                                     Icon(
@@ -709,6 +771,18 @@ fun MediaPlayerScreen(
             file = file,
             onDismissRequest = { showPropertiesDialog = false }
         )
+    }
+
+    if (showClipboardDialog) {
+        ClipboardDialog(
+            clipboardItems = AppClipboard.items,
+            onClearAll = { AppClipboard.clear() },
+            onDismissRequest = { showClipboardDialog = false }
+        )
+    }
+
+    if (showCapacityLimitDialog) {
+        CapacityLimitDialog(onDismiss = { showCapacityLimitDialog = false })
     }
 }
 

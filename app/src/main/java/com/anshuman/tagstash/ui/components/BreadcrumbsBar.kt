@@ -6,6 +6,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Checklist
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.ContentPasteGo
 import androidx.compose.material.icons.filled.Deselect
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
@@ -43,8 +45,11 @@ fun BreadcrumbsBar(
     isSelectionMode: Boolean = false,
     selectedCount: Int = 0,
     isAllSelected: Boolean = false,
+    clipboardCount: Int = 0,
     onSelectModeToggle: () -> Unit = {},
     onSelectAllToggle: () -> Unit = {},
+    onPasteClick: (() -> Unit)? = null,
+    onClipboardClick: (() -> Unit)? = null,
     onInfoClick: (() -> Unit)? = null
 ) {
     val breadcrumbs = remember(currentDir, homeDir) { buildBreadcrumbs(currentDir, homeDir) }
@@ -144,6 +149,40 @@ fun BreadcrumbsBar(
                             onClick = {
                                 showMenu = false
                                 onSelectAllToggle()
+                            }
+                        )
+                    }
+
+                    if (!isSelectionMode && clipboardCount > 0) {
+                        DropdownMenuItem(
+                            text = { Text("Paste ($clipboardCount)") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.ContentPaste,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            onClick = {
+                                showMenu = false
+                                onPasteClick?.invoke()
+                            }
+                        )
+                    }
+
+                    if (clipboardCount > 0) {
+                        DropdownMenuItem(
+                            text = { Text("Clipboard ($clipboardCount)") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.ContentPasteGo,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            onClick = {
+                                showMenu = false
+                                onClipboardClick?.invoke()
                             }
                         )
                     }
