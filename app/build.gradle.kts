@@ -35,14 +35,18 @@ android {
                 ?: (project.findProperty("RELEASE_KEY_PASSWORD") as? String)
 
             if (keystorePath != null && keystorePassword != null && keyAlias != null) {
-                val keystoreFile = File(keystorePath)
+                val keystoreFile = if (File(keystorePath).isAbsolute) {
+                    File(keystorePath)
+                } else {
+                    rootProject.file(keystorePath).canonicalFile
+                }
                 if (keystoreFile.exists()) {
                     storeFile = keystoreFile
                     storePassword = keystorePassword
                     this.keyAlias = keyAlias
                     this.keyPassword = keyPassword ?: keystorePassword
                 } else {
-                    throw org.gradle.api.GradleException("Release keystore file specified at '$keystorePath' was not found.")
+                    throw org.gradle.api.GradleException("Release keystore file specified at '$keystorePath' (resolved to '${keystoreFile.absolutePath}') was not found.")
                 }
             } else {
                 val isReleaseBuildRequested = gradle.startParameter.taskNames.any { task ->
