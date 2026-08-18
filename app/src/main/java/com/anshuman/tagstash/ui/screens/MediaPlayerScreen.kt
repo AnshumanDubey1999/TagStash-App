@@ -831,6 +831,15 @@ fun MediaPlayerScreen(
             files = listOf(file),
             onConfirmDelete = {
                 showDeleteDialog = false
+                val currentSiblings = getSiblingMedia(file)
+                val currIdx = currentSiblings.indexOfFirst { it.absolutePath == file.absolutePath }
+                val remaining = currentSiblings.filter { it.absolutePath != file.absolutePath }
+                val nextTarget = when {
+                    remaining.isEmpty() -> null
+                    currIdx in remaining.indices -> remaining[currIdx]
+                    else -> remaining.last()
+                }
+
                 coroutineScope.launch {
                     val trashed = RecycleBinDatabaseHelper.getInstance(context).moveToRecycleBin(listOf(file), context)
                     if (trashed.isNotEmpty()) {
@@ -855,7 +864,13 @@ fun MediaPlayerScreen(
                             )
                         )
                     }
-                    onClose()
+                    if (nextTarget == null) {
+                        onClose()
+                    } else {
+                        scale = 1.0f
+                        offset = Offset.Zero
+                        onNavigateToMedia(nextTarget)
+                    }
                 }
             },
             onDismissRequest = { showDeleteDialog = false }

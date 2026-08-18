@@ -744,11 +744,18 @@ fun MainScreen(
             file = activeMediaPlayerFile!!,
             globalLoopEnabled = globalLoopEnabled,
             onToggleGlobalLoop = { globalLoopEnabled = it },
-            onClose = { activeMediaPlayerFile = null },
-            onNavigateToMedia = { activeMediaPlayerFile = it },
+            onClose = {
+                activeMediaPlayerFile = null
+                refreshTrigger++
+            },
+            onNavigateToMedia = {
+                activeMediaPlayerFile = it
+                refreshTrigger++
+            },
             onSettingsClick = {
                 activeMediaPlayerFile = null
                 currentScreenView = "SETTINGS"
+                refreshTrigger++
             }
         )
     }

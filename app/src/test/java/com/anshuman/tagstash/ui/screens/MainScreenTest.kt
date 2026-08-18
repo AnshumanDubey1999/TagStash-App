@@ -913,6 +913,11 @@ class MainScreenTest {
             composeTestRule.onNodeWithText("Recycle Bin").performClick()
             composeTestRule.waitForIdle()
 
+            // Wait for items to load from database
+            composeTestRule.waitUntil(5000) {
+                composeTestRule.onAllNodesWithText("restore_ui_test.txt").fetchSemanticsNodes().isNotEmpty()
+            }
+
             // Verify items are displayed
             composeTestRule.onNodeWithText("restore_ui_test.txt").assertIsDisplayed()
             composeTestRule.onNodeWithText("permanent_delete_ui_test.txt").assertIsDisplayed()
@@ -948,6 +953,163 @@ class MainScreenTest {
                 recycleBinHelper.clearAll()
                 auditHelper.clearAllLogs()
             }
+        }
+    }
+
+    @Test
+    fun testMediaPlayerDeleteFirstFileNavigatesToNext() {
+        val tempDir = File(testDataDir, "temp_mp_delete_test_1")
+        if (!tempDir.exists()) tempDir.mkdirs()
+        val file1 = File(tempDir, "img1.png").apply { writeText("img1") }
+        val file2 = File(tempDir, "img2.png").apply { writeText("img2") }
+
+        var navigatedTarget: File? = null
+        var closed = false
+
+        try {
+            composeTestRule.setContent {
+                TagStashTheme {
+                    MediaPlayerScreen(
+                        file = file1,
+                        globalLoopEnabled = true,
+                        onToggleGlobalLoop = {},
+                        onClose = { closed = true },
+                        onNavigateToMedia = { navigatedTarget = it }
+                    )
+                }
+            }
+
+            // Click center to show overlays
+            composeTestRule.onRoot().performClick()
+            composeTestRule.mainClock.advanceTimeBy(500)
+            composeTestRule.waitForIdle()
+
+            // Click 3-dots menu in header
+            composeTestRule.onNodeWithContentDescription("More options").performClick()
+            composeTestRule.waitForIdle()
+
+            // Click Delete
+            composeTestRule.onNodeWithText("Delete").performClick()
+            composeTestRule.waitForIdle()
+
+            // Confirm delete
+            composeTestRule.onNode(isToggleable()).performClick()
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithContentDescription("Confirm Delete").performClick()
+            composeTestRule.waitForIdle()
+
+            // Should navigate to img2.png
+            composeTestRule.waitUntil(5000) { navigatedTarget != null }
+            org.junit.Assert.assertEquals(file2.absolutePath, navigatedTarget?.absolutePath)
+            org.junit.Assert.assertFalse(closed)
+        } finally {
+            file1.delete()
+            file2.delete()
+            tempDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun testMediaPlayerDeleteLastFileNavigatesToPrevious() {
+        val tempDir = File(testDataDir, "temp_mp_delete_test_2")
+        if (!tempDir.exists()) tempDir.mkdirs()
+        val file1 = File(tempDir, "img1.png").apply { writeText("img1") }
+        val file2 = File(tempDir, "img2.png").apply { writeText("img2") }
+
+        var navigatedTarget: File? = null
+        var closed = false
+
+        try {
+            composeTestRule.setContent {
+                TagStashTheme {
+                    MediaPlayerScreen(
+                        file = file2,
+                        globalLoopEnabled = true,
+                        onToggleGlobalLoop = {},
+                        onClose = { closed = true },
+                        onNavigateToMedia = { navigatedTarget = it }
+                    )
+                }
+            }
+
+            // Click center to show overlays
+            composeTestRule.onRoot().performClick()
+            composeTestRule.mainClock.advanceTimeBy(500)
+            composeTestRule.waitForIdle()
+
+            // Click 3-dots menu in header
+            composeTestRule.onNodeWithContentDescription("More options").performClick()
+            composeTestRule.waitForIdle()
+
+            // Click Delete
+            composeTestRule.onNodeWithText("Delete").performClick()
+            composeTestRule.waitForIdle()
+
+            // Confirm delete
+            composeTestRule.onNode(isToggleable()).performClick()
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithContentDescription("Confirm Delete").performClick()
+            composeTestRule.waitForIdle()
+
+            // Should navigate back to img1.png
+            composeTestRule.waitUntil(5000) { navigatedTarget != null }
+            org.junit.Assert.assertEquals(file1.absolutePath, navigatedTarget?.absolutePath)
+            org.junit.Assert.assertFalse(closed)
+        } finally {
+            file1.delete()
+            file2.delete()
+            tempDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun testMediaPlayerDeleteSingleFileClosesPlayer() {
+        val tempDir = File(testDataDir, "temp_mp_delete_test_3")
+        if (!tempDir.exists()) tempDir.mkdirs()
+        val file1 = File(tempDir, "single_img.png").apply { writeText("single") }
+
+        var navigatedTarget: File? = null
+        var closed = false
+
+        try {
+            composeTestRule.setContent {
+                TagStashTheme {
+                    MediaPlayerScreen(
+                        file = file1,
+                        globalLoopEnabled = true,
+                        onToggleGlobalLoop = {},
+                        onClose = { closed = true },
+                        onNavigateToMedia = { navigatedTarget = it }
+                    )
+                }
+            }
+
+            // Click center to show overlays
+            composeTestRule.onRoot().performClick()
+            composeTestRule.mainClock.advanceTimeBy(500)
+            composeTestRule.waitForIdle()
+
+            // Click 3-dots menu in header
+            composeTestRule.onNodeWithContentDescription("More options").performClick()
+            composeTestRule.waitForIdle()
+
+            // Click Delete
+            composeTestRule.onNodeWithText("Delete").performClick()
+            composeTestRule.waitForIdle()
+
+            // Confirm delete
+            composeTestRule.onNode(isToggleable()).performClick()
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithContentDescription("Confirm Delete").performClick()
+            composeTestRule.waitForIdle()
+
+            // Should close player
+            composeTestRule.waitUntil(5000) { closed }
+            org.junit.Assert.assertTrue(closed)
+            org.junit.Assert.assertNull(navigatedTarget)
+        } finally {
+            file1.delete()
+            tempDir.deleteRecursively()
         }
     }
 }
