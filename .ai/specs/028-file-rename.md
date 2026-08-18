@@ -18,7 +18,7 @@
   - **A**: If the file extension is changed or removed on a regular file:
     - An inline warning banner is displayed within the dialog (*"Changing the file extension from .old to .new may prevent this file from opening properly"*).
     - An **"Undo Extension"** button is provided to quickly revert the extension back to the original.
-    - The action button displays *"Rename Anyway"* or *"Rename (Keep Extension)"* to ensure explicit intent.
+    - The action button displays *"Rename Anyway"* to ensure explicit intent.
 - **Q**: How are file collisions and invalid names prevented?
   - **A**: 
     - Empty name or unchanged name: Rename button is disabled.

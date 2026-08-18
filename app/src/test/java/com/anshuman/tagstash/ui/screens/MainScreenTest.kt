@@ -1158,7 +1158,7 @@ class MainScreenTest {
                 .performTextReplacement("sample_document.txt")
             composeTestRule.waitForIdle()
             composeTestRule.onNodeWithText("Extension Changed").assertIsDisplayed()
-            composeTestRule.onNodeWithText("Rename (Keep Extension)").assertIsDisplayed()
+            composeTestRule.onNodeWithText("Rename Anyway").assertIsDisplayed()
 
             // Test revert extension
             composeTestRule.onNodeWithText("Undo Extension (.pdf)").performClick()

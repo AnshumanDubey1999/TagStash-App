@@ -279,7 +279,7 @@ fun RenameDialog(
                             shape = RoundedCornerShape(10.dp)
                         ) {
                             Text(
-                                text = if (isExtensionChanged) "Rename (Keep Extension)" else "Rename",
+                                text = if (isExtensionChanged) "Rename Anyway" else "Rename",
                                 fontWeight = FontWeight.Bold
                             )
                         }
