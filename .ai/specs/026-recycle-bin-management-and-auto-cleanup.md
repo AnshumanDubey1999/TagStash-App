@@ -1,6 +1,6 @@
 # Specification: 026-recycle-bin-management-and-auto-cleanup
 
-**Status**: TODO
+**Status**: DONE
 
 ---
 
