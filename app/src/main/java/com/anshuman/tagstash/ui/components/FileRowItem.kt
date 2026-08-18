@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
@@ -56,6 +57,7 @@ fun FileRowItem(
     onSelectClick: (() -> Unit)? = null,
     onCutClick: (() -> Unit)? = null,
     onCopyClick: (() -> Unit)? = null,
+    onRenameClick: (() -> Unit)? = null,
     onDeleteClick: (() -> Unit)? = null,
     onInfoClick: (() -> Unit)? = null,
     onContextMenuVisibilityChanged: ((Boolean) -> Unit)? = null
@@ -205,6 +207,21 @@ fun FileRowItem(
                         showContextMenu = false
                         onContextMenuVisibilityChanged?.invoke(false)
                         onCopyClick?.invoke()
+                    }
+                )
+                DropdownMenuItem(
+                    text = { Text("Rename") },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.DriveFileRenameOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    },
+                    onClick = {
+                        showContextMenu = false
+                        onContextMenuVisibilityChanged?.invoke(false)
+                        onRenameClick?.invoke()
                     }
                 )
                 DropdownMenuItem(

@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Restore
@@ -284,9 +285,10 @@ private fun PastActionCard(
                 AuditActionType.PASTE -> Icons.Default.ContentPaste
                 AuditActionType.DELETE -> Icons.Default.DeleteOutline
                 AuditActionType.RESTORE -> Icons.Default.Restore
+                AuditActionType.RENAME -> Icons.Default.DriveFileRenameOutline
                 AuditActionType.DELETE_PERMANENT, AuditActionType.AUTO_DELETE -> Icons.Default.DeleteForever
             }
-            val actionTint = if (entry.actionType == AuditActionType.PASTE || entry.actionType == AuditActionType.RESTORE) {
+            val actionTint = if (entry.actionType == AuditActionType.PASTE || entry.actionType == AuditActionType.RESTORE || entry.actionType == AuditActionType.RENAME) {
                 MaterialTheme.colorScheme.primary
             } else {
                 MaterialTheme.colorScheme.error
@@ -296,6 +298,7 @@ private fun PastActionCard(
                 AuditActionType.PASTE -> "Paste Action"
                 AuditActionType.DELETE -> "Delete Action"
                 AuditActionType.RESTORE -> "Restore Action"
+                AuditActionType.RENAME -> "Rename Action"
                 AuditActionType.DELETE_PERMANENT, AuditActionType.AUTO_DELETE -> "Purge Action"
             }
 

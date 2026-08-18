@@ -41,6 +41,7 @@ import com.anshuman.tagstash.ui.components.CapacityLimitDialog
 import com.anshuman.tagstash.ui.components.ClipboardDialog
 import com.anshuman.tagstash.ui.components.DeleteConfirmationDialog
 import com.anshuman.tagstash.ui.components.FilePropertiesDialog
+import com.anshuman.tagstash.ui.components.RenameDialog
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -117,6 +118,7 @@ fun MediaPlayerScreen(
     var offset by remember(file) { mutableStateOf(Offset.Zero) }
     var videoDimensions by remember(file) { mutableStateOf<ImageDimensions?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showRenameDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
     // Singleton ExoPlayer instance for this screen
@@ -637,6 +639,21 @@ fun MediaPlayerScreen(
                             }
 
                             DropdownMenuItem(
+                                text = { Text("Rename") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.DriveFileRenameOutline,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary
+                                    )
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    showRenameDialog = true
+                                }
+                            )
+
+                            DropdownMenuItem(
                                 text = { Text("Info") },
                                 leadingIcon = {
                                     Icon(
@@ -805,6 +822,46 @@ fun MediaPlayerScreen(
                 }
             }
         }
+    }
+
+    if (showRenameDialog) {
+        RenameDialog(
+            file = file,
+            onConfirmRename = { newName ->
+                showRenameDialog = false
+                val parent = file.parentFile ?: File("/")
+                val targetFile = File(parent, newName)
+                coroutineScope.launch {
+                    val renamed = withContext(Dispatchers.IO) {
+                        file.renameTo(targetFile)
+                    }
+                    if (renamed) {
+                        val auditLogHelper = AuditLogDatabaseHelper.getInstance(context)
+                        val itemDetail = AuditLogItemDetail(
+                            sourcePath = file.absolutePath,
+                            destinationPath = targetFile.absolutePath,
+                            command = "RENAME",
+                            outcome = AuditItemOutcome.RENAMED,
+                            fileName = targetFile.name,
+                            fileSize = targetFile.length(),
+                            isDirectory = false
+                        )
+                        auditLogHelper.insertLog(
+                            AuditLogEntry(
+                                timestamp = System.currentTimeMillis(),
+                                actionType = AuditActionType.RENAME,
+                                summary = "Renamed ${file.name} to ${targetFile.name}",
+                                destinationDirectory = parent.name.ifEmpty { "/" },
+                                totalItems = 1,
+                                items = listOf(itemDetail)
+                            )
+                        )
+                        onNavigateToMedia(targetFile)
+                    }
+                }
+            },
+            onDismissRequest = { showRenameDialog = false }
+        )
     }
 
     if (showPropertiesDialog) {

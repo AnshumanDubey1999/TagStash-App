@@ -5,7 +5,8 @@ enum class AuditActionType {
     DELETE,
     RESTORE,
     DELETE_PERMANENT,
-    AUTO_DELETE
+    AUTO_DELETE,
+    RENAME
 }
 
 enum class AuditItemOutcome {
@@ -17,7 +18,8 @@ enum class AuditItemOutcome {
     TRASHED,
     RESTORED,
     PERMANENTLY_DELETED,
-    AUTO_DELETED_EXPIRED
+    AUTO_DELETED_EXPIRED,
+    RENAMED
 }
 
 data class AuditLogItemDetail(

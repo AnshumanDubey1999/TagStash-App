@@ -63,6 +63,7 @@ import com.anshuman.tagstash.ui.components.ErrorView
 import com.anshuman.tagstash.ui.components.FilePropertiesDialog
 import com.anshuman.tagstash.ui.components.FileRowItem
 import com.anshuman.tagstash.ui.components.PermissionRequestView
+import com.anshuman.tagstash.ui.components.RenameDialog
 import com.anshuman.tagstash.ui.screens.PastActionsScreen
 import com.anshuman.tagstash.ui.screens.SettingsScreen
 import kotlinx.coroutines.CompletableDeferred
@@ -122,6 +123,7 @@ fun MainScreen(
     var isPasting by remember { mutableStateOf(false) }
     var isContextMenuOpen by remember { mutableStateOf(false) }
     var filesPendingDelete by remember { mutableStateOf<List<File>?>(null) }
+    var filePendingRename by remember { mutableStateOf<File?>(null) }
 
     fun cutSelectedFiles() {
         val files = selectedFiles.toList()
@@ -509,6 +511,9 @@ fun MainScreen(
                                                 showCapacityLimitDialog = true
                                             }
                                         },
+                                        onRenameClick = {
+                                            filePendingRename = targetFile
+                                        },
                                         onDeleteClick = {
                                             filesPendingDelete = listOf(targetFile)
                                         },
@@ -736,6 +741,47 @@ fun MainScreen(
                 }
             },
             onDismissRequest = { filesPendingDelete = null }
+        )
+    }
+
+    if (filePendingRename != null) {
+        RenameDialog(
+            file = filePendingRename!!,
+            onConfirmRename = { newName ->
+                val oldFile = filePendingRename!!
+                filePendingRename = null
+                val parent = oldFile.parentFile ?: File("/")
+                val targetFile = File(parent, newName)
+                coroutineScope.launch {
+                    val success = withContext(Dispatchers.IO) {
+                        oldFile.renameTo(targetFile)
+                    }
+                    if (success) {
+                        val auditLogHelper = AuditLogDatabaseHelper.getInstance(context)
+                        val itemDetail = AuditLogItemDetail(
+                            sourcePath = oldFile.absolutePath,
+                            destinationPath = targetFile.absolutePath,
+                            command = "RENAME",
+                            outcome = AuditItemOutcome.RENAMED,
+                            fileName = targetFile.name,
+                            fileSize = targetFile.length(),
+                            isDirectory = targetFile.isDirectory
+                        )
+                        auditLogHelper.insertLog(
+                            AuditLogEntry(
+                                timestamp = System.currentTimeMillis(),
+                                actionType = AuditActionType.RENAME,
+                                summary = "Renamed ${oldFile.name} to ${targetFile.name}",
+                                destinationDirectory = parent.name.ifEmpty { "/" },
+                                totalItems = 1,
+                                items = listOf(itemDetail)
+                            )
+                        )
+                        refreshTrigger++
+                    }
+                }
+            },
+            onDismissRequest = { filePendingRename = null }
         )
     }
 

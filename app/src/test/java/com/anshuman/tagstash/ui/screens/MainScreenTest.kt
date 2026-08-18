@@ -8,13 +8,17 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.onRoot
 import com.anshuman.tagstash.data.clipboard.AppClipboard
 import com.anshuman.tagstash.data.clipboard.ClipboardOpType
 import com.anshuman.tagstash.data.database.AuditLogDatabaseHelper
 import com.anshuman.tagstash.data.database.RecycleBinDatabaseHelper
+import com.anshuman.tagstash.data.model.AuditActionType
 import com.anshuman.tagstash.ui.components.DeleteConfirmationDialog
+import com.anshuman.tagstash.ui.components.RenameDialog
 import com.anshuman.tagstash.ui.theme.TagStashTheme
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.After
@@ -1109,6 +1113,182 @@ class MainScreenTest {
             org.junit.Assert.assertNull(navigatedTarget)
         } finally {
             file1.delete()
+            tempDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun testRenameDialogStandaloneValidationAndExtensionChange() {
+        val tempDir = File(testDataDir, "temp_rename_unit_test")
+        if (!tempDir.exists()) tempDir.mkdirs()
+        val file1 = File(tempDir, "sample_document.pdf").apply { writeText("pdf content") }
+        val fileExisting = File(tempDir, "already_exists.pdf").apply { writeText("exists") }
+
+        var confirmedName: String? = null
+        var dismissed = false
+
+        try {
+            composeTestRule.setContent {
+                TagStashTheme {
+                    RenameDialog(
+                        file = file1,
+                        onConfirmRename = { confirmedName = it },
+                        onDismissRequest = { dismissed = true }
+                    )
+                }
+            }
+
+            // Verify title
+            composeTestRule.onNodeWithText("Rename File").assertIsDisplayed()
+
+            // Test collision validation
+            composeTestRule.onNodeWithContentDescription("Rename text input")
+                .performTextReplacement("already_exists.pdf")
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithText("An item with this name already exists").assertIsDisplayed()
+
+            // Test invalid char validation
+            composeTestRule.onNodeWithContentDescription("Rename text input")
+                .performTextReplacement("bad/name.pdf")
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithText("Name cannot contain '/' characters").assertIsDisplayed()
+
+            // Test extension change warning
+            composeTestRule.onNodeWithContentDescription("Rename text input")
+                .performTextReplacement("sample_document.txt")
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithText("Extension Changed").assertIsDisplayed()
+            composeTestRule.onNodeWithText("Rename (Keep Extension)").assertIsDisplayed()
+
+            // Test revert extension
+            composeTestRule.onNodeWithText("Undo Extension (.pdf)").performClick()
+            composeTestRule.waitForIdle()
+            composeTestRule.onAllNodesWithText("Extension Changed").fetchSemanticsNodes().isEmpty()
+
+            // Perform valid rename
+            composeTestRule.onNodeWithContentDescription("Rename text input")
+                .performTextReplacement("final_document.pdf")
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithContentDescription("Confirm Rename").performClick()
+            composeTestRule.waitForIdle()
+
+            org.junit.Assert.assertEquals("final_document.pdf", confirmedName)
+        } finally {
+            file1.delete()
+            fileExisting.delete()
+            tempDir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun testMainScreenRenameFlowAndAuditLog() {
+        val tempDir = File(testDataDir, "temp_rename_ms_test")
+        if (!tempDir.exists()) tempDir.mkdirs()
+        val file1 = File(tempDir, "doc_to_rename.txt").apply { writeText("some text") }
+        val targetRenamed = File(tempDir, "doc_renamed.txt")
+
+        val auditHelper = AuditLogDatabaseHelper.getInstance(androidx.test.core.app.ApplicationProvider.getApplicationContext())
+
+        try {
+            composeTestRule.setContent {
+                TagStashTheme {
+                    MainScreen(
+                        permissionGranted = true,
+                        onRequestPermission = {},
+                        homeDirectory = tempDir
+                    )
+                }
+            }
+
+            // Long press file to open context menu
+            composeTestRule.onNodeWithText("doc_to_rename.txt").performTouchInput { longClick() }
+            composeTestRule.waitForIdle()
+
+            // Click Rename
+            composeTestRule.onNodeWithText("Rename").performClick()
+            composeTestRule.waitForIdle()
+
+            // Change name
+            composeTestRule.onNodeWithContentDescription("Rename text input")
+                .performTextReplacement("doc_renamed.txt")
+            composeTestRule.waitForIdle()
+
+            // Confirm
+            composeTestRule.onNodeWithContentDescription("Confirm Rename").performClick()
+            composeTestRule.waitForIdle()
+
+            // Verify file renamed on disk
+            composeTestRule.waitUntil(5000) { targetRenamed.exists() && !file1.exists() }
+            org.junit.Assert.assertTrue(targetRenamed.exists())
+            org.junit.Assert.assertFalse(file1.exists())
+
+            // Verify audit log
+            val logs = kotlinx.coroutines.runBlocking { auditHelper.getAllLogs() }
+            val renameLog = logs.find { it.actionType == AuditActionType.RENAME }
+            org.junit.Assert.assertNotNull(renameLog)
+            org.junit.Assert.assertEquals(1, renameLog?.totalItems)
+        } finally {
+            file1.delete()
+            targetRenamed.delete()
+            tempDir.deleteRecursively()
+            kotlinx.coroutines.runBlocking {
+                auditHelper.clearAllLogs()
+            }
+        }
+    }
+
+    @Test
+    fun testMediaPlayerScreenRename() {
+        val tempDir = File(testDataDir, "temp_mp_rename_test")
+        if (!tempDir.exists()) tempDir.mkdirs()
+        val file1 = File(tempDir, "img_to_rename.png").apply { writeText("img") }
+        val fileRenamed = File(tempDir, "img_renamed.png")
+
+        var navigatedTarget: File? = null
+
+        try {
+            composeTestRule.setContent {
+                TagStashTheme {
+                    MediaPlayerScreen(
+                        file = file1,
+                        globalLoopEnabled = true,
+                        onToggleGlobalLoop = {},
+                        onClose = {},
+                        onNavigateToMedia = { navigatedTarget = it }
+                    )
+                }
+            }
+
+            // Click center to show overlays
+            composeTestRule.onRoot().performClick()
+            composeTestRule.mainClock.advanceTimeBy(500)
+            composeTestRule.waitForIdle()
+
+            // Click 3-dots menu in header
+            composeTestRule.onNodeWithContentDescription("More options").performClick()
+            composeTestRule.waitForIdle()
+
+            // Click Rename
+            composeTestRule.onNodeWithText("Rename").performClick()
+            composeTestRule.waitForIdle()
+
+            // Replace name
+            composeTestRule.onNodeWithContentDescription("Rename text input")
+                .performTextReplacement("img_renamed.png")
+            composeTestRule.waitForIdle()
+
+            // Confirm
+            composeTestRule.onNodeWithContentDescription("Confirm Rename").performClick()
+            composeTestRule.waitForIdle()
+
+            // Check disk and navigation target
+            composeTestRule.waitUntil(5000) { fileRenamed.exists() && navigatedTarget != null }
+            org.junit.Assert.assertTrue(fileRenamed.exists())
+            org.junit.Assert.assertFalse(file1.exists())
+            org.junit.Assert.assertEquals(fileRenamed.absolutePath, navigatedTarget?.absolutePath)
+        } finally {
+            file1.delete()
+            fileRenamed.delete()
             tempDir.deleteRecursively()
         }
     }

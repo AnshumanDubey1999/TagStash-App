@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.DriveFileRenameOutline
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -74,9 +75,10 @@ fun ActionDetailDialog(
                                 AuditActionType.PASTE -> Icons.Default.ContentPaste
                                 AuditActionType.DELETE -> Icons.Default.DeleteOutline
                                 AuditActionType.RESTORE -> Icons.Default.Restore
+                                AuditActionType.RENAME -> Icons.Default.DriveFileRenameOutline
                                 AuditActionType.DELETE_PERMANENT, AuditActionType.AUTO_DELETE -> Icons.Default.DeleteForever
                             }
-                            val actionTint = if (entry.actionType == AuditActionType.PASTE || entry.actionType == AuditActionType.RESTORE) {
+                            val actionTint = if (entry.actionType == AuditActionType.PASTE || entry.actionType == AuditActionType.RESTORE || entry.actionType == AuditActionType.RENAME) {
                                 MaterialTheme.colorScheme.primary
                             } else {
                                 MaterialTheme.colorScheme.error
@@ -306,6 +308,7 @@ private fun ActionDetailItemCard(item: AuditLogItemDetail) {
                     "COPY" -> Color(0xFF4FC3F7)
                     "DELETE" -> Color(0xFFEF5350)
                     "RESTORE" -> Color(0xFF81C784)
+                    "RENAME" -> Color(0xFF81D4FA)
                     else -> Color(0xFFA0A0A0)
                 }
                 Surface(
@@ -332,6 +335,7 @@ private fun ActionDetailItemCard(item: AuditLogItemDetail) {
                     AuditItemOutcome.SKIPPED -> "SKIPPED" to Color(0xFF9E9E9E)
                     AuditItemOutcome.TRASHED -> "TRASHED" to Color(0xFFE57373)
                     AuditItemOutcome.RESTORED -> "RESTORED" to Color(0xFF81C784)
+                    AuditItemOutcome.RENAMED -> "RENAMED" to Color(0xFF81D4FA)
                     AuditItemOutcome.PERMANENTLY_DELETED, AuditItemOutcome.AUTO_DELETED_EXPIRED -> "DELETED" to Color(0xFFE57373)
                 }
                 Surface(
