@@ -838,4 +838,116 @@ class MainScreenTest {
             }
         }
     }
+
+    @Test
+    fun testRecycleBinScreenEmptyState() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val recycleBinHelper = RecycleBinDatabaseHelper.getInstance(context)
+        kotlinx.coroutines.runBlocking { recycleBinHelper.clearAll() }
+
+        composeTestRule.setContent {
+            TagStashTheme {
+                MainScreen(
+                    permissionGranted = true,
+                    onRequestPermission = {},
+                    homeDirectory = testDataDir
+                )
+            }
+        }
+
+        // Open Settings
+        composeTestRule.onNodeWithContentDescription("More options").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Settings").performClick()
+        composeTestRule.waitForIdle()
+
+        // Click Recycle Bin row
+        composeTestRule.onNodeWithText("Recycle Bin").performClick()
+        composeTestRule.waitForIdle()
+
+        // Verify Empty State is shown
+        composeTestRule.onNodeWithText("Recycle Bin is Empty").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Deleted files will appear here and be kept for 1 hour before permanent removal.").assertIsDisplayed()
+
+        // Click Back
+        composeTestRule.onNodeWithContentDescription("Back").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Settings").assertIsDisplayed()
+    }
+
+    @Test
+    fun testRecycleBinScreenRestoreAndPermanentDelete() {
+        val tempDir = File(testDataDir, "temp_recycle_bin_screen_test")
+        if (!tempDir.exists()) tempDir.mkdirs()
+        val file1 = File(tempDir, "restore_ui_test.txt").apply { writeText("Content 1") }
+        val file2 = File(tempDir, "permanent_delete_ui_test.txt").apply { writeText("Content 2") }
+
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val recycleBinHelper = RecycleBinDatabaseHelper.getInstance(context)
+        val auditHelper = AuditLogDatabaseHelper.getInstance(context)
+
+        try {
+            kotlinx.coroutines.runBlocking {
+                recycleBinHelper.clearAll()
+                auditHelper.clearAllLogs()
+                recycleBinHelper.moveToRecycleBin(listOf(file1, file2), context)
+            }
+
+            composeTestRule.setContent {
+                TagStashTheme {
+                    MainScreen(
+                        permissionGranted = true,
+                        onRequestPermission = {},
+                        homeDirectory = testDataDir
+                    )
+                }
+            }
+
+            // Open Settings
+            composeTestRule.onNodeWithContentDescription("More options").performClick()
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithText("Settings").performClick()
+            composeTestRule.waitForIdle()
+
+            // Click Recycle Bin row
+            composeTestRule.onNodeWithText("Recycle Bin").performClick()
+            composeTestRule.waitForIdle()
+
+            // Verify items are displayed
+            composeTestRule.onNodeWithText("restore_ui_test.txt").assertIsDisplayed()
+            composeTestRule.onNodeWithText("permanent_delete_ui_test.txt").assertIsDisplayed()
+            composeTestRule.onNodeWithText("1-Hour Temporary Storage").assertIsDisplayed()
+
+            // Click Restore on file 1
+            composeTestRule.onNodeWithContentDescription("Restore restore_ui_test.txt").performClick()
+            composeTestRule.waitForIdle()
+
+            // Verify file1 is restored on disk
+            composeTestRule.waitUntil(5000) { file1.exists() }
+            org.junit.Assert.assertTrue(file1.exists())
+
+            // Click Delete Permanently on file 2
+            composeTestRule.onNodeWithContentDescription("Delete permanently permanent_delete_ui_test.txt").performClick()
+            composeTestRule.waitForIdle()
+
+            // Confirm permanent deletion in dialog
+            composeTestRule.onNodeWithText("Delete Permanently?").assertIsDisplayed()
+            composeTestRule.onNodeWithText("Delete Permanently").performClick()
+            composeTestRule.waitForIdle()
+
+            // Verify Recycle bin is now empty
+            composeTestRule.waitUntil(5000) {
+                composeTestRule.onAllNodesWithText("Recycle Bin is Empty").fetchSemanticsNodes().isNotEmpty()
+            }
+            composeTestRule.onNodeWithText("Recycle Bin is Empty").assertIsDisplayed()
+        } finally {
+            file1.delete()
+            file2.delete()
+            tempDir.deleteRecursively()
+            kotlinx.coroutines.runBlocking {
+                recycleBinHelper.clearAll()
+                auditHelper.clearAllLogs()
+            }
+        }
+    }
 }

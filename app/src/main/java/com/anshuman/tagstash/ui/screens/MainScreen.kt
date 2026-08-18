@@ -258,11 +258,14 @@ fun MainScreen(
     }
 
     // Intercept hardware Back Button: Navigation stack order:
-    // PastActions -> Settings -> File Explorer -> Parent directories
+    // PastActions / RecycleBin -> Settings -> File Explorer -> Parent directories
     val isHome = currentDirectory.absolutePath == homeDirectory.absolutePath
     BackHandler(enabled = currentScreenView != "MAIN" || (permissionGranted && (isSelectionMode || !isHome))) {
         when {
-            currentScreenView == "PAST_ACTIONS" -> currentScreenView = "SETTINGS"
+            currentScreenView == "PAST_ACTIONS" || currentScreenView == "RECYCLE_BIN" -> {
+                currentScreenView = "SETTINGS"
+                refreshTrigger++
+            }
             currentScreenView == "SETTINGS" -> currentScreenView = "MAIN"
             isSelectionMode -> {
                 isSelectionMode = false
@@ -277,21 +280,28 @@ fun MainScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        coroutineScope.launch {
+            RecycleBinDatabaseHelper.getInstance(context).cleanupExpiredItems(context)
+        }
+    }
+
     // Load files when directory or permission changes
     LaunchedEffect(currentDirectory, permissionGranted, refreshTrigger) {
         if (!permissionGranted) return@LaunchedEffect
 
         isLoading = true
         errorMessage = null
+
         withContext(Dispatchers.IO) {
             try {
-                val files = currentDirectory.listFiles()
-                if (files == null) {
-                    errorMessage = "Access Denied or Directory Unreadable"
+                if (!currentDirectory.exists() || !currentDirectory.canRead()) {
+                    errorMessage = "Cannot read directory: ${currentDirectory.name}"
                     filesList = emptyList()
                 } else {
+                    val files = currentDirectory.listFiles() ?: emptyArray()
                     filesList = files.map { file ->
-                        val childCount = if (file.isDirectory) (file.list()?.size ?: 0) else 0
+                        val childCount = if (file.isDirectory) file.listFiles()?.size ?: 0 else 0
                         FileItem(
                             name = file.name,
                             path = file.absolutePath,
@@ -321,11 +331,19 @@ fun MainScreen(
     if (currentScreenView == "SETTINGS") {
         SettingsScreen(
             onBack = { currentScreenView = "MAIN" },
-            onNavigateToPastActions = { currentScreenView = "PAST_ACTIONS" }
+            onNavigateToPastActions = { currentScreenView = "PAST_ACTIONS" },
+            onNavigateToRecycleBin = { currentScreenView = "RECYCLE_BIN" }
         )
     } else if (currentScreenView == "PAST_ACTIONS") {
         PastActionsScreen(
             onBack = { currentScreenView = "SETTINGS" }
+        )
+    } else if (currentScreenView == "RECYCLE_BIN") {
+        RecycleBinScreen(
+            onBack = {
+                currentScreenView = "SETTINGS"
+                refreshTrigger++
+            }
         )
     } else {
         Scaffold(

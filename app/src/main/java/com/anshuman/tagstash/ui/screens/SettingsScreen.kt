@@ -1,5 +1,6 @@
 package com.anshuman.tagstash.ui.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -7,22 +8,35 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.anshuman.tagstash.data.database.RecycleBinDatabaseHelper
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
-    onNavigateToPastActions: () -> Unit
+    onNavigateToPastActions: () -> Unit,
+    onNavigateToRecycleBin: () -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val recycleBinHelper = remember { RecycleBinDatabaseHelper.getInstance(context) }
+    var recycleBinCount by remember { mutableStateOf(0) }
+
+    LaunchedEffect(Unit) {
+        recycleBinHelper.cleanupExpiredItems(context)
+        recycleBinCount = recycleBinHelper.getItemCount()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -61,6 +75,20 @@ fun SettingsScreen(
                 description = "View history of file operations like paste, rename, and delete",
                 onClick = onNavigateToPastActions
             )
+
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 20.dp),
+                color = Color(0xFF262626),
+                thickness = 0.5.dp
+            )
+
+            SettingsItemRow(
+                icon = Icons.Default.DeleteOutline,
+                title = "Recycle Bin",
+                description = "View and restore deleted files (kept for 1 hour)",
+                badgeText = if (recycleBinCount > 0) "$recycleBinCount items" else null,
+                onClick = onNavigateToRecycleBin
+            )
         }
     }
 }
@@ -70,6 +98,7 @@ private fun SettingsItemRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     description: String,
+    badgeText: String? = null,
     onClick: () -> Unit
 ) {
     Row(
@@ -99,12 +128,30 @@ private fun SettingsItemRow(
         Spacer(modifier = Modifier.width(16.dp))
 
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontWeight = FontWeight.SemiBold,
-                fontSize = 16.sp,
-                color = Color.White
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = title,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                    color = Color.White
+                )
+                if (badgeText != null) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = Color(0xFF141518),
+                        border = BorderStroke(1.dp, Color(0xFF2B2D35))
+                    ) {
+                        Text(
+                            text = badgeText,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
             Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = description,

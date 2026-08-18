@@ -167,6 +167,171 @@ class RecycleBinDatabaseHelper(context: Context) : SQLiteOpenHelper(
         }
     }
 
+    suspend fun getItemById(id: Long): RecycleBinItem? = withContext(Dispatchers.IO) {
+        val db = readableDatabase
+        val cursor = db.query(
+            TABLE_RECYCLE_BIN,
+            null,
+            "$COLUMN_ID = ?",
+            arrayOf(id.toString()),
+            null,
+            null,
+            null
+        )
+        cursor.use {
+            if (it.moveToFirst()) {
+                val origPath = it.getString(it.getColumnIndexOrThrow(COLUMN_ORIGINAL_PATH))
+                val trashedPath = it.getString(it.getColumnIndexOrThrow(COLUMN_TRASHED_PATH))
+                val fileName = it.getString(it.getColumnIndexOrThrow(COLUMN_FILE_NAME))
+                val fileSize = it.getLong(it.getColumnIndexOrThrow(COLUMN_FILE_SIZE))
+                val isDir = it.getInt(it.getColumnIndexOrThrow(COLUMN_IS_DIRECTORY)) == 1
+                val deletedTime = it.getLong(it.getColumnIndexOrThrow(COLUMN_DELETED_TIMESTAMP))
+                val expiryTime = it.getLong(it.getColumnIndexOrThrow(COLUMN_EXPIRY_TIMESTAMP))
+                RecycleBinItem(
+                    id = id,
+                    originalPath = origPath,
+                    trashedPath = trashedPath,
+                    fileName = fileName,
+                    fileSize = fileSize,
+                    isDirectory = isDir,
+                    deletedTimestamp = deletedTime,
+                    expiryTimestamp = expiryTime
+                )
+            } else null
+        }
+    }
+
+    suspend fun restoreItem(id: Long, context: Context): Pair<RecycleBinItem, File>? = withContext(Dispatchers.IO) {
+        val item = getItemById(id) ?: return@withContext null
+        val trashedFile = File(item.trashedPath)
+        if (!trashedFile.exists()) {
+            deleteItem(id)
+            return@withContext null
+        }
+
+        val targetOrig = File(item.originalPath)
+        val parentDir = targetOrig.parentFile ?: File("/")
+        if (!parentDir.exists()) {
+            parentDir.mkdirs()
+        }
+
+        val restoredDestination = getAvailableRestoredFile(targetOrig)
+        val success = moveFileOrDirectory(trashedFile, restoredDestination)
+        if (success) {
+            deleteItem(id)
+            Pair(item, restoredDestination)
+        } else {
+            null
+        }
+    }
+
+    suspend fun restoreAllItems(context: Context): List<Pair<RecycleBinItem, File>> = withContext(Dispatchers.IO) {
+        val allItems = getAllItems()
+        val restored = mutableListOf<Pair<RecycleBinItem, File>>()
+        for (item in allItems) {
+            val result = restoreItem(item.id, context)
+            if (result != null) {
+                restored.add(result)
+            }
+        }
+        restored
+    }
+
+    suspend fun permanentlyDeleteItem(id: Long, context: Context): Boolean = withContext(Dispatchers.IO) {
+        val item = getItemById(id)
+        if (item != null) {
+            val trashedFile = File(item.trashedPath)
+            if (trashedFile.exists()) {
+                if (trashedFile.isDirectory) {
+                    trashedFile.deleteRecursively()
+                } else {
+                    trashedFile.delete()
+                }
+            }
+        }
+        deleteItem(id)
+    }
+
+    suspend fun emptyRecycleBin(context: Context): Int = withContext(Dispatchers.IO) {
+        val allItems = getAllItems()
+        for (item in allItems) {
+            val file = File(item.trashedPath)
+            if (file.exists()) {
+                if (file.isDirectory) file.deleteRecursively() else file.delete()
+            }
+        }
+        val trashDir = File(context.filesDir, "recycle_bin")
+        if (trashDir.exists()) {
+            trashDir.listFiles()?.forEach {
+                if (it.isDirectory) it.deleteRecursively() else it.delete()
+            }
+        }
+        clearAll()
+    }
+
+    suspend fun cleanupExpiredItems(context: Context): List<RecycleBinItem> = withContext(Dispatchers.IO) {
+        val currentTime = System.currentTimeMillis()
+        val expiredItems = mutableListOf<RecycleBinItem>()
+        val db = writableDatabase
+        val cursor = db.query(
+            TABLE_RECYCLE_BIN,
+            null,
+            "$COLUMN_EXPIRY_TIMESTAMP <= ?",
+            arrayOf(currentTime.toString()),
+            null,
+            null,
+            null
+        )
+        cursor.use {
+            while (it.moveToNext()) {
+                val id = it.getLong(it.getColumnIndexOrThrow(COLUMN_ID))
+                val originalPath = it.getString(it.getColumnIndexOrThrow(COLUMN_ORIGINAL_PATH))
+                val trashedPath = it.getString(it.getColumnIndexOrThrow(COLUMN_TRASHED_PATH))
+                val fileName = it.getString(it.getColumnIndexOrThrow(COLUMN_FILE_NAME))
+                val fileSize = it.getLong(it.getColumnIndexOrThrow(COLUMN_FILE_SIZE))
+                val isDirectory = it.getInt(it.getColumnIndexOrThrow(COLUMN_IS_DIRECTORY)) == 1
+                val deletedTimestamp = it.getLong(it.getColumnIndexOrThrow(COLUMN_DELETED_TIMESTAMP))
+                val expiryTimestamp = it.getLong(it.getColumnIndexOrThrow(COLUMN_EXPIRY_TIMESTAMP))
+                expiredItems.add(
+                    RecycleBinItem(
+                        id = id,
+                        originalPath = originalPath,
+                        trashedPath = trashedPath,
+                        fileName = fileName,
+                        fileSize = fileSize,
+                        isDirectory = isDirectory,
+                        deletedTimestamp = deletedTimestamp,
+                        expiryTimestamp = expiryTimestamp
+                    )
+                )
+            }
+        }
+
+        for (item in expiredItems) {
+            val file = File(item.trashedPath)
+            if (file.exists()) {
+                if (file.isDirectory) file.deleteRecursively() else file.delete()
+            }
+            db.delete(TABLE_RECYCLE_BIN, "$COLUMN_ID = ?", arrayOf(item.id.toString()))
+        }
+        expiredItems
+    }
+
+    private fun getAvailableRestoredFile(target: File): File {
+        if (!target.exists()) return target
+        val parent = target.parentFile ?: File("/")
+        val nameWithoutExt = if (target.isDirectory) target.name else target.nameWithoutExtension
+        val ext = if (target.isDirectory || target.extension.isEmpty()) "" else ".${target.extension}"
+
+        var candidate = File(parent, "$nameWithoutExt (restored)$ext")
+        var counter = 1
+        while (candidate.exists()) {
+            candidate = File(parent, "$nameWithoutExt (restored $counter)$ext")
+            counter++
+        }
+        return candidate
+    }
+
     suspend fun deleteItem(id: Long): Boolean = withContext(Dispatchers.IO) {
         val db = writableDatabase
         val rows = db.delete(TABLE_RECYCLE_BIN, "$COLUMN_ID = ?", arrayOf(id.toString()))
