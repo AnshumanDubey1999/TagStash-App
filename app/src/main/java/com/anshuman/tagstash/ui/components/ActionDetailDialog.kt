@@ -306,7 +306,8 @@ private fun ActionDetailItemCard(item: AuditLogItemDetail) {
                 val cmdColor = when (item.command.uppercase()) {
                     "CUT" -> Color(0xFFFFB74D)
                     "COPY" -> Color(0xFF4FC3F7)
-                    "DELETE" -> Color(0xFFEF5350)
+                    "DELETE", "DELETE_PERMANENT" -> Color(0xFFEF5350)
+                    "AUTO_DELETE" -> Color(0xFFFF7043)
                     "RESTORE" -> Color(0xFF81C784)
                     "RENAME" -> Color(0xFF81D4FA)
                     else -> Color(0xFFA0A0A0)
@@ -336,7 +337,8 @@ private fun ActionDetailItemCard(item: AuditLogItemDetail) {
                     AuditItemOutcome.TRASHED -> "TRASHED" to Color(0xFFE57373)
                     AuditItemOutcome.RESTORED -> "RESTORED" to Color(0xFF81C784)
                     AuditItemOutcome.RENAMED -> "RENAMED" to Color(0xFF81D4FA)
-                    AuditItemOutcome.PERMANENTLY_DELETED, AuditItemOutcome.AUTO_DELETED_EXPIRED -> "DELETED" to Color(0xFFE57373)
+                    AuditItemOutcome.PERMANENTLY_DELETED -> "DELETED" to Color(0xFFE57373)
+                    AuditItemOutcome.AUTO_DELETED_EXPIRED -> "EXPIRED" to Color(0xFFFF7043)
                 }
                 Surface(
                     shape = RoundedCornerShape(4.dp),

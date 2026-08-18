@@ -1292,4 +1292,71 @@ class MainScreenTest {
             tempDir.deleteRecursively()
         }
     }
+
+    @Test
+    fun testPastActionsScreenAutoPurgeAuditLogDisplay() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val recycleBinHelper = RecycleBinDatabaseHelper.getInstance(context)
+        val auditHelper = AuditLogDatabaseHelper.getInstance(context)
+
+        val tempDir = File(testDataDir, "temp_autopurge_ui_test")
+        if (!tempDir.exists()) tempDir.mkdirs()
+        val file1 = File(tempDir, "auto_purge_sample.txt").apply { writeText("expired content") }
+
+        try {
+            kotlinx.coroutines.runBlocking {
+                val trashed = recycleBinHelper.moveToRecycleBin(listOf(file1), context)
+                val db = recycleBinHelper.writableDatabase
+                val pastTime = System.currentTimeMillis() - 10000L
+                val values = android.content.ContentValues().apply {
+                    put(RecycleBinDatabaseHelper.COLUMN_EXPIRY_TIMESTAMP, pastTime)
+                }
+                db.update(RecycleBinDatabaseHelper.TABLE_RECYCLE_BIN, values, "${RecycleBinDatabaseHelper.COLUMN_ID} = ?", arrayOf(trashed[0].id.toString()))
+                recycleBinHelper.cleanupExpiredItems(context)
+            }
+
+            composeTestRule.setContent {
+                TagStashTheme {
+                    MainScreen(
+                        permissionGranted = true,
+                        onRequestPermission = {},
+                        homeDirectory = testDataDir
+                    )
+                }
+            }
+
+            // Open Settings
+            composeTestRule.onNodeWithContentDescription("More options").performClick()
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithText("Settings").performClick()
+            composeTestRule.waitForIdle()
+
+            // Open Past Actions
+            composeTestRule.onNodeWithText("Past Actions").performClick()
+            composeTestRule.waitForIdle()
+
+            // Verify Auto-Purge Action is listed
+            composeTestRule.waitUntil(5000) {
+                composeTestRule.onAllNodesWithText("1 item • To: Auto Cleanup").fetchSemanticsNodes().isNotEmpty()
+            }
+            composeTestRule.onNodeWithText("1 item • To: Auto Cleanup").assertIsDisplayed()
+            composeTestRule.onNodeWithContentDescription("Auto-Purge Action").assertIsDisplayed()
+
+            // Click Auto-Purge item to open details
+            composeTestRule.onNodeWithText("1 item • To: Auto Cleanup").performClick()
+            composeTestRule.waitForIdle()
+
+            // Verify Action Details dialog
+            composeTestRule.onNodeWithText("Action Details").assertIsDisplayed()
+            composeTestRule.onNodeWithText("AUTO_DELETE").assertIsDisplayed()
+            composeTestRule.onNodeWithText("EXPIRED").assertIsDisplayed()
+        } finally {
+            file1.delete()
+            tempDir.deleteRecursively()
+            kotlinx.coroutines.runBlocking {
+                recycleBinHelper.clearAll()
+                auditHelper.clearAllLogs()
+            }
+        }
+    }
 }

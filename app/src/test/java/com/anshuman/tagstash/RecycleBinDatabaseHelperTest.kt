@@ -2,7 +2,10 @@ package com.anshuman.tagstash
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.anshuman.tagstash.data.database.AuditLogDatabaseHelper
 import com.anshuman.tagstash.data.database.RecycleBinDatabaseHelper
+import com.anshuman.tagstash.data.model.AuditActionType
+import com.anshuman.tagstash.data.model.AuditItemOutcome
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.*
@@ -24,13 +27,16 @@ class RecycleBinDatabaseHelperTest {
 
     private lateinit var context: Context
     private lateinit var dbHelper: RecycleBinDatabaseHelper
+    private lateinit var auditHelper: AuditLogDatabaseHelper
 
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
-        dbHelper = RecycleBinDatabaseHelper(context)
+        dbHelper = RecycleBinDatabaseHelper.getInstance(context)
+        auditHelper = AuditLogDatabaseHelper.getInstance(context)
         runBlocking {
             dbHelper.clearAll()
+            auditHelper.clearAllLogs()
         }
     }
 
@@ -38,6 +44,7 @@ class RecycleBinDatabaseHelperTest {
     fun tearDown() {
         runBlocking {
             dbHelper.clearAll()
+            auditHelper.clearAllLogs()
         }
         dbHelper.close()
     }
@@ -229,5 +236,26 @@ class RecycleBinDatabaseHelperTest {
         // Non-expired item remains
         assertEquals(1, dbHelper.getItemCount())
         assertTrue(File(trashed[1].trashedPath).exists())
+
+        // Verify audit log
+        val logs = auditHelper.getAllLogs()
+        val autoDeleteLog = logs.find { it.actionType == AuditActionType.AUTO_DELETE }
+        assertNotNull(autoDeleteLog)
+        assertEquals(1, autoDeleteLog?.totalItems)
+        assertEquals("Auto Cleanup", autoDeleteLog?.destinationDirectory)
+        assertEquals(AuditItemOutcome.AUTO_DELETED_EXPIRED, autoDeleteLog?.items?.first()?.outcome)
+    }
+
+    @Test
+    fun testCleanupExpiredItemsNoExpiredNoAuditLog() = runBlocking {
+        val file1 = tempFolder.newFile("still_fresh.txt").apply { writeText("Still Fresh") }
+        dbHelper.moveToRecycleBin(listOf(file1), context)
+
+        val expired = dbHelper.cleanupExpiredItems(context)
+        assertEquals(0, expired.size)
+
+        val logs = auditHelper.getAllLogs()
+        val autoDeleteLog = logs.find { it.actionType == AuditActionType.AUTO_DELETE }
+        assertNull(autoDeleteLog)
     }
 }

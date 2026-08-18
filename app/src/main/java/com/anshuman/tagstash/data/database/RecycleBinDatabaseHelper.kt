@@ -4,6 +4,10 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import com.anshuman.tagstash.data.model.AuditActionType
+import com.anshuman.tagstash.data.model.AuditItemOutcome
+import com.anshuman.tagstash.data.model.AuditLogEntry
+import com.anshuman.tagstash.data.model.AuditLogItemDetail
 import com.anshuman.tagstash.data.model.RecycleBinItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -314,6 +318,37 @@ class RecycleBinDatabaseHelper(context: Context) : SQLiteOpenHelper(
             }
             db.delete(TABLE_RECYCLE_BIN, "$COLUMN_ID = ?", arrayOf(item.id.toString()))
         }
+
+        if (expiredItems.isNotEmpty()) {
+            val auditHelper = AuditLogDatabaseHelper.getInstance(context)
+            val details = expiredItems.map {
+                AuditLogItemDetail(
+                    sourcePath = it.trashedPath,
+                    destinationPath = null,
+                    command = "AUTO_DELETE",
+                    outcome = AuditItemOutcome.AUTO_DELETED_EXPIRED,
+                    fileName = it.fileName,
+                    fileSize = it.fileSize,
+                    isDirectory = it.isDirectory
+                )
+            }
+            val summaryText = if (expiredItems.size == 1) {
+                "Auto-purged expired file ${expiredItems.first().fileName} (1 hour retention)"
+            } else {
+                "Auto-purged ${expiredItems.size} expired files (1 hour retention)"
+            }
+            auditHelper.insertLog(
+                AuditLogEntry(
+                    timestamp = currentTime,
+                    actionType = AuditActionType.AUTO_DELETE,
+                    summary = summaryText,
+                    destinationDirectory = "Auto Cleanup",
+                    totalItems = expiredItems.size,
+                    items = details
+                )
+            )
+        }
+
         expiredItems
     }
 

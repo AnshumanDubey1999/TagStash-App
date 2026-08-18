@@ -286,7 +286,8 @@ private fun PastActionCard(
                 AuditActionType.DELETE -> Icons.Default.DeleteOutline
                 AuditActionType.RESTORE -> Icons.Default.Restore
                 AuditActionType.RENAME -> Icons.Default.DriveFileRenameOutline
-                AuditActionType.DELETE_PERMANENT, AuditActionType.AUTO_DELETE -> Icons.Default.DeleteForever
+                AuditActionType.DELETE_PERMANENT -> Icons.Default.DeleteForever
+                AuditActionType.AUTO_DELETE -> Icons.Default.DeleteSweep
             }
             val actionTint = if (entry.actionType == AuditActionType.PASTE || entry.actionType == AuditActionType.RESTORE || entry.actionType == AuditActionType.RENAME) {
                 MaterialTheme.colorScheme.primary
@@ -299,7 +300,8 @@ private fun PastActionCard(
                 AuditActionType.DELETE -> "Delete Action"
                 AuditActionType.RESTORE -> "Restore Action"
                 AuditActionType.RENAME -> "Rename Action"
-                AuditActionType.DELETE_PERMANENT, AuditActionType.AUTO_DELETE -> "Purge Action"
+                AuditActionType.DELETE_PERMANENT -> "Purge Action"
+                AuditActionType.AUTO_DELETE -> "Auto-Purge Action"
             }
 
             Box(
