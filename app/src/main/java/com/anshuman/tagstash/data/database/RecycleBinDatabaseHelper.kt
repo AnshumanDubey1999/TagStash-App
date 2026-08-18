@@ -71,7 +71,11 @@ class RecycleBinDatabaseHelper(context: Context) : SQLiteOpenHelper(
         onCreate(db)
     }
 
-    suspend fun moveToRecycleBin(files: List<File>, context: Context): List<RecycleBinItem> = withContext(Dispatchers.IO) {
+    suspend fun moveToRecycleBin(
+        files: List<File>,
+        context: Context,
+        onProgress: ((current: Int, total: Int, name: String) -> Unit)? = null
+    ): List<RecycleBinItem> = withContext(Dispatchers.IO) {
         val trashDir = File(context.filesDir, "recycle_bin").apply {
             if (!exists()) mkdirs()
         }
@@ -81,7 +85,8 @@ class RecycleBinDatabaseHelper(context: Context) : SQLiteOpenHelper(
         val currentTime = System.currentTimeMillis()
         val expiryTime = currentTime + RETENTION_DURATION_MS
 
-        for (file in files) {
+        for ((index, file) in files.withIndex()) {
+            onProgress?.invoke(index + 1, files.size, file.name)
             if (!file.exists()) continue
 
             val isDir = file.isDirectory
@@ -229,10 +234,14 @@ class RecycleBinDatabaseHelper(context: Context) : SQLiteOpenHelper(
         }
     }
 
-    suspend fun restoreAllItems(context: Context): List<Pair<RecycleBinItem, File>> = withContext(Dispatchers.IO) {
+    suspend fun restoreAllItems(
+        context: Context,
+        onProgress: ((current: Int, total: Int, name: String) -> Unit)? = null
+    ): List<Pair<RecycleBinItem, File>> = withContext(Dispatchers.IO) {
         val allItems = getAllItems()
         val restored = mutableListOf<Pair<RecycleBinItem, File>>()
-        for (item in allItems) {
+        for ((index, item) in allItems.withIndex()) {
+            onProgress?.invoke(index + 1, allItems.size, item.fileName)
             val result = restoreItem(item.id, context)
             if (result != null) {
                 restored.add(result)
@@ -256,9 +265,13 @@ class RecycleBinDatabaseHelper(context: Context) : SQLiteOpenHelper(
         deleteItem(id)
     }
 
-    suspend fun emptyRecycleBin(context: Context): Int = withContext(Dispatchers.IO) {
+    suspend fun emptyRecycleBin(
+        context: Context,
+        onProgress: ((current: Int, total: Int, name: String) -> Unit)? = null
+    ): Int = withContext(Dispatchers.IO) {
         val allItems = getAllItems()
-        for (item in allItems) {
+        for ((index, item) in allItems.withIndex()) {
+            onProgress?.invoke(index + 1, allItems.size, item.fileName)
             val file = File(item.trashedPath)
             if (file.exists()) {
                 if (file.isDirectory) file.deleteRecursively() else file.delete()

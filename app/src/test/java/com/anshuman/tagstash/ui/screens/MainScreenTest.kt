@@ -17,7 +17,10 @@ import com.anshuman.tagstash.data.clipboard.ClipboardOpType
 import com.anshuman.tagstash.data.database.AuditLogDatabaseHelper
 import com.anshuman.tagstash.data.database.RecycleBinDatabaseHelper
 import com.anshuman.tagstash.data.model.AuditActionType
+import androidx.compose.material.icons.filled.ContentCopy
 import com.anshuman.tagstash.ui.components.DeleteConfirmationDialog
+import com.anshuman.tagstash.ui.components.OperationProgressDialog
+import com.anshuman.tagstash.ui.components.OperationProgressState
 import com.anshuman.tagstash.ui.components.RenameDialog
 import com.anshuman.tagstash.ui.theme.TagStashTheme
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -41,11 +44,21 @@ class MainScreenTest {
 
     @Before
     fun setUp() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        kotlinx.coroutines.runBlocking {
+            RecycleBinDatabaseHelper.getInstance(context).clearAll()
+            AuditLogDatabaseHelper.getInstance(context).clearAllLogs()
+        }
         AppClipboard.clear()
     }
 
     @After
     fun tearDown() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        kotlinx.coroutines.runBlocking {
+            RecycleBinDatabaseHelper.getInstance(context).clearAll()
+            AuditLogDatabaseHelper.getInstance(context).clearAllLogs()
+        }
         AppClipboard.clear()
     }
 
@@ -1352,6 +1365,92 @@ class MainScreenTest {
             composeTestRule.onNodeWithText("EXPIRED").assertIsDisplayed()
         } finally {
             file1.delete()
+            tempDir.deleteRecursively()
+            kotlinx.coroutines.runBlocking {
+                recycleBinHelper.clearAll()
+                auditHelper.clearAllLogs()
+            }
+        }
+    }
+
+    @Test
+    fun testOperationProgressDialogStandalone() {
+        val state = OperationProgressState(
+            title = "Copying items...",
+            currentItem = 5,
+            totalItems = 20,
+            currentFileName = "sample_video.mp4",
+            icon = androidx.compose.material.icons.Icons.Default.ContentCopy,
+            iconTint = androidx.compose.ui.graphics.Color(0xFF4FC3F7)
+        )
+
+        composeTestRule.setContent {
+            TagStashTheme {
+                OperationProgressDialog(state = state)
+            }
+        }
+
+        // Verify Dialog Elements
+        composeTestRule.onNodeWithContentDescription("Operation Progress Dialog").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Copying items...").assertIsDisplayed()
+        composeTestRule.onNodeWithText("5 of 20 items (25%)").assertIsDisplayed()
+        composeTestRule.onNodeWithText("sample_video.mp4").assertIsDisplayed()
+    }
+
+    @Test
+    fun testBatchOperationProgressInMainScreenDelete() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val recycleBinHelper = RecycleBinDatabaseHelper.getInstance(context)
+        val auditHelper = AuditLogDatabaseHelper.getInstance(context)
+
+        val tempDir = File(testDataDir, "temp_progress_delete_test")
+        if (!tempDir.exists()) tempDir.mkdirs()
+        val file1 = File(tempDir, "prog1.txt").apply { writeText("1") }
+        val file2 = File(tempDir, "prog2.txt").apply { writeText("2") }
+
+        try {
+            composeTestRule.setContent {
+                TagStashTheme {
+                    MainScreen(
+                        permissionGranted = true,
+                        onRequestPermission = {},
+                        homeDirectory = tempDir
+                    )
+                }
+            }
+
+            // Enter selection mode
+            composeTestRule.onNodeWithContentDescription("More options").performClick()
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithText("Select").performClick()
+            composeTestRule.waitForIdle()
+
+            // Select prog1.txt and prog2.txt
+            composeTestRule.onNodeWithText("prog1.txt").performClick()
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithText("prog2.txt").performClick()
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithText("2 items selected").assertIsDisplayed()
+
+            // Click Delete in top bar overflow menu
+            composeTestRule.onNodeWithContentDescription("More options").performClick()
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithText("Delete").performClick()
+            composeTestRule.waitForIdle()
+
+            // Confirm Delete in dialog
+            composeTestRule.onNode(isToggleable()).performClick()
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithContentDescription("Confirm Delete").performClick()
+            composeTestRule.waitForIdle()
+
+            // Verify files moved to recycle bin
+            composeTestRule.waitUntil(5000) { !file1.exists() && !file2.exists() }
+            org.junit.Assert.assertFalse(file1.exists())
+            org.junit.Assert.assertFalse(file2.exists())
+        } finally {
+            file1.delete()
+            file2.delete()
             tempDir.deleteRecursively()
             kotlinx.coroutines.runBlocking {
                 recycleBinHelper.clearAll()

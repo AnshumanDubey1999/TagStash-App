@@ -38,6 +38,8 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.FloatingActionButton
+import com.anshuman.tagstash.ui.components.OperationProgressDialog
+import com.anshuman.tagstash.ui.components.OperationProgressState
 import com.anshuman.tagstash.data.clipboard.AppClipboard
 import com.anshuman.tagstash.data.clipboard.ClipboardOpType
 import com.anshuman.tagstash.data.database.AuditLogDatabaseHelper
@@ -121,9 +123,13 @@ fun MainScreen(
     var activeConflictFile by remember { mutableStateOf<File?>(null) }
     var conflictDeferred by remember { mutableStateOf<CompletableDeferred<Pair<ConflictResolution, Boolean>>?>(null) }
     var isPasting by remember { mutableStateOf(false) }
+    var operationProgress by remember { mutableStateOf<OperationProgressState?>(null) }
     var isContextMenuOpen by remember { mutableStateOf(false) }
     var filesPendingDelete by remember { mutableStateOf<List<File>?>(null) }
     var filePendingRename by remember { mutableStateOf<File?>(null) }
+
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val errorColor = MaterialTheme.colorScheme.error
 
     fun cutSelectedFiles() {
         val files = selectedFiles.toList()
@@ -155,8 +161,17 @@ fun MainScreen(
             val itemsToPaste = AppClipboard.items.toList()
             val auditDetails = mutableListOf<AuditLogItemDetail>()
 
-            for (item in itemsToPaste) {
+            for ((index, item) in itemsToPaste.withIndex()) {
                 val sourceFile = item.file
+                val isCut = item.opType == ClipboardOpType.CUT
+                operationProgress = OperationProgressState(
+                    title = if (isCut) "Moving items..." else "Copying items...",
+                    currentItem = index + 1,
+                    totalItems = itemsToPaste.size,
+                    currentFileName = sourceFile.name,
+                    icon = if (isCut) Icons.Default.ContentCut else Icons.Default.ContentCopy,
+                    iconTint = primaryColor
+                )
                 if (!sourceFile.exists()) continue
 
                 // If cutting file in the same directory where it already resides, skip
@@ -246,6 +261,7 @@ fun MainScreen(
             }
 
             AppClipboard.clear()
+            operationProgress = null
             isPasting = false
             refreshTrigger++
         }
@@ -707,7 +723,29 @@ fun MainScreen(
                 val toDelete = filesPendingDelete!!
                 filesPendingDelete = null
                 coroutineScope.launch {
-                    val trashed = RecycleBinDatabaseHelper.getInstance(context).moveToRecycleBin(toDelete, context)
+                    val toDeleteCount = toDelete.size
+                    operationProgress = OperationProgressState(
+                        title = "Moving to Recycle Bin...",
+                        currentItem = 1,
+                        totalItems = toDeleteCount,
+                        currentFileName = toDelete.firstOrNull()?.name ?: "",
+                        icon = Icons.Default.DeleteOutline,
+                        iconTint = errorColor
+                    )
+                    val trashed = RecycleBinDatabaseHelper.getInstance(context).moveToRecycleBin(
+                        toDelete,
+                        context
+                    ) { current, total, name ->
+                        operationProgress = OperationProgressState(
+                            title = "Moving to Recycle Bin...",
+                            currentItem = current,
+                            totalItems = total,
+                            currentFileName = name,
+                            icon = Icons.Default.DeleteOutline,
+                            iconTint = errorColor
+                        )
+                    }
+                    operationProgress = null
                     if (trashed.isNotEmpty()) {
                         val auditLogHelper = AuditLogDatabaseHelper.getInstance(context)
                         val details = trashed.map {
@@ -742,6 +780,10 @@ fun MainScreen(
             },
             onDismissRequest = { filesPendingDelete = null }
         )
+    }
+
+    if (operationProgress != null) {
+        OperationProgressDialog(state = operationProgress!!)
     }
 
     if (filePendingRename != null) {

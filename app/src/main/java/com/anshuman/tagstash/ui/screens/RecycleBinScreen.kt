@@ -28,6 +28,8 @@ import com.anshuman.tagstash.data.model.*
 import com.anshuman.tagstash.data.utils.formatFileSize
 import com.anshuman.tagstash.data.utils.getFileIcon
 import com.anshuman.tagstash.data.utils.getIconColor
+import com.anshuman.tagstash.ui.components.OperationProgressDialog
+import com.anshuman.tagstash.ui.components.OperationProgressState
 import kotlinx.coroutines.launch
 import java.io.File
 
@@ -49,6 +51,10 @@ fun RecycleBinScreen(
     var itemPendingPermanentDelete by remember { mutableStateOf<RecycleBinItem?>(null) }
     var showEmptyBinDialog by remember { mutableStateOf(false) }
     var showRestoreAllDialog by remember { mutableStateOf(false) }
+    var operationProgress by remember { mutableStateOf<OperationProgressState?>(null) }
+
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val errorColor = MaterialTheme.colorScheme.error
 
     fun refreshItems() {
         coroutineScope.launch {
@@ -295,7 +301,25 @@ fun RecycleBinScreen(
                         showEmptyBinDialog = false
                         coroutineScope.launch {
                             val itemsToDelete = items.toList()
-                            recycleBinHelper.emptyRecycleBin(context)
+                            operationProgress = OperationProgressState(
+                                title = "Emptying Recycle Bin...",
+                                currentItem = 1,
+                                totalItems = itemsToDelete.size,
+                                currentFileName = itemsToDelete.firstOrNull()?.fileName ?: "",
+                                icon = Icons.Default.DeleteForever,
+                                iconTint = errorColor
+                            )
+                            recycleBinHelper.emptyRecycleBin(context) { current, total, name ->
+                                operationProgress = OperationProgressState(
+                                    title = "Emptying Recycle Bin...",
+                                    currentItem = current,
+                                    totalItems = total,
+                                    currentFileName = name,
+                                    icon = Icons.Default.DeleteForever,
+                                    iconTint = errorColor
+                                )
+                            }
+                            operationProgress = null
                             val details = itemsToDelete.map {
                                 AuditLogItemDetail(
                                     sourcePath = it.trashedPath,
@@ -321,7 +345,7 @@ fun RecycleBinScreen(
                         }
                     },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error
+                        containerColor = errorColor
                     ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
@@ -361,7 +385,26 @@ fun RecycleBinScreen(
                     onClick = {
                         showRestoreAllDialog = false
                         coroutineScope.launch {
-                            val restoredList = recycleBinHelper.restoreAllItems(context)
+                            val itemsToRestore = items.toList()
+                            operationProgress = OperationProgressState(
+                                title = "Restoring items...",
+                                currentItem = 1,
+                                totalItems = itemsToRestore.size,
+                                currentFileName = itemsToRestore.firstOrNull()?.fileName ?: "",
+                                icon = Icons.Default.Restore,
+                                iconTint = primaryColor
+                            )
+                            val restoredList = recycleBinHelper.restoreAllItems(context) { current, total, name ->
+                                operationProgress = OperationProgressState(
+                                    title = "Restoring items...",
+                                    currentItem = current,
+                                    totalItems = total,
+                                    currentFileName = name,
+                                    icon = Icons.Default.Restore,
+                                    iconTint = primaryColor
+                                )
+                            }
+                            operationProgress = null
                             if (restoredList.isNotEmpty()) {
                                 val details = restoredList.map { (item, restoredFile) ->
                                     AuditLogItemDetail(
@@ -401,6 +444,10 @@ fun RecycleBinScreen(
             containerColor = Color(0xFF1E1E1E),
             shape = RoundedCornerShape(16.dp)
         )
+    }
+
+    if (operationProgress != null) {
+        OperationProgressDialog(state = operationProgress!!)
     }
 }
 
