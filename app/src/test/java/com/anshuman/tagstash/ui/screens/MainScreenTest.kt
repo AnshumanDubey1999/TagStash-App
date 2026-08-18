@@ -256,6 +256,11 @@ class MainScreenTest {
             }
         }
 
+        // Wait for directory contents to load
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("images").fetchSemanticsNodes().isNotEmpty()
+        }
+
         // Open top menu and click Select
         composeTestRule.onNodeWithContentDescription("More options").performClick()
         composeTestRule.waitForIdle()
@@ -290,11 +295,19 @@ class MainScreenTest {
             }
         }
 
+        // Wait for directory contents to load
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("images").fetchSemanticsNodes().isNotEmpty()
+        }
+
         // Long press on images folder
         composeTestRule.onNodeWithText("images").performTouchInput { longClick() }
         composeTestRule.waitForIdle()
 
         // Click Select
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("Select").fetchSemanticsNodes().isNotEmpty()
+        }
         composeTestRule.onNodeWithText("Select").performClick()
         composeTestRule.waitForIdle()
 
@@ -512,11 +525,19 @@ class MainScreenTest {
             }
         }
 
+        // Wait for directory contents to load
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("images").fetchSemanticsNodes().isNotEmpty()
+        }
+
         // Long press on images folder
         composeTestRule.onNodeWithText("images").performTouchInput { longClick() }
         composeTestRule.waitForIdle()
 
         // Verify options
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("Copy").fetchSemanticsNodes().isNotEmpty()
+        }
         composeTestRule.onNodeWithText("Select").assertIsDisplayed()
         composeTestRule.onNodeWithText("Cut").assertIsDisplayed()
         composeTestRule.onNodeWithText("Copy").assertIsDisplayed()
@@ -593,6 +614,9 @@ class MainScreenTest {
             composeTestRule.onRoot().captureRoboImage("screenshots/main_screen_floating_paste_button.png")
 
             // Long press images row -> context menu opens -> FAB should be hidden
+            composeTestRule.waitUntil(5000) {
+                composeTestRule.onAllNodesWithText("images").fetchSemanticsNodes().isNotEmpty()
+            }
             composeTestRule.onNodeWithText("images").performTouchInput { longClick() }
             composeTestRule.waitForIdle()
             composeTestRule.onNodeWithContentDescription("Paste from clipboard").assertDoesNotExist()
