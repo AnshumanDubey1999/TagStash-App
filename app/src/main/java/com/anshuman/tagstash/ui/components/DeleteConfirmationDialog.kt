@@ -122,13 +122,16 @@ fun DeleteConfirmationDialog(
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                    // Confirmation Checkbox Row
+                    // 1. Cautionary Confirmation Checkbox Card
                     Surface(
                         shape = RoundedCornerShape(12.dp),
-                        color = if (isConfirmed) MaterialTheme.colorScheme.error.copy(alpha = 0.12f) else Color(0xFF141414),
-                        border = BorderStroke(1.dp, if (isConfirmed) MaterialTheme.colorScheme.error.copy(alpha = 0.5f) else Color(0xFF2C2C2C)),
+                        color = if (isConfirmed) Color(0xFF38151A) else Color(0xFF23191B),
+                        border = BorderStroke(
+                            if (isConfirmed) 1.5.dp else 1.dp,
+                            if (isConfirmed) MaterialTheme.colorScheme.error.copy(alpha = 0.85f) else Color(0xFF4E262A)
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
@@ -139,7 +142,7 @@ fun DeleteConfirmationDialog(
                                     role = Role.Checkbox,
                                     onValueChange = { isConfirmed = it }
                                 )
-                                .padding(12.dp),
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Checkbox(
@@ -147,7 +150,8 @@ fun DeleteConfirmationDialog(
                                 onCheckedChange = null,
                                 colors = CheckboxDefaults.colors(
                                     checkedColor = MaterialTheme.colorScheme.error,
-                                    uncheckedColor = Color(0xFFA0A0A0)
+                                    uncheckedColor = Color(0xFFBA6868),
+                                    checkmarkColor = Color.White
                                 )
                             )
                             Spacer(modifier = Modifier.width(8.dp))
@@ -158,54 +162,64 @@ fun DeleteConfirmationDialog(
                                     "Click here if you are sure you want to delete these ${files.size} items"
                                 },
                                 style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = if (isConfirmed) FontWeight.SemiBold else FontWeight.Medium,
+                                    fontSize = 13.5.sp
                                 ),
-                                color = if (isConfirmed) Color.White else Color(0xFFDDDDDD)
+                                color = if (isConfirmed) Color.White else Color(0xFFE8D0D2)
                             )
                         }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
-                    HorizontalDivider(color = Color(0xFF2C2C2C), thickness = 1.dp)
-                    Spacer(modifier = Modifier.height(12.dp))
 
-                    // Scrollable Items List
-                    LazyColumn(
+                    // 2. Inset Well for List of Deleted Items
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF141518),
+                        border = BorderStroke(1.dp, Color(0xFF25262B)),
                         modifier = Modifier
                             .weight(1f, fill = false)
-                            .fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .fillMaxWidth()
                     ) {
-                        items(files) { file ->
-                            DeleteItemCard(file = file)
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            items(files) { file ->
+                                DeleteItemCard(file = file)
+                            }
                         }
                     }
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Info notice
+                    // 3. Informational Callout Card (Recycle Bin Retention Notice)
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = Color(0xFF141414),
-                        border = BorderStroke(1.dp, Color(0xFF262626)),
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF0F1E2E),
+                        border = BorderStroke(1.dp, Color(0xFF1B3B5F)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(
-                            modifier = Modifier.padding(10.dp),
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Info,
                                 contentDescription = null,
-                                tint = Color(0xFFA0A0A0),
-                                modifier = Modifier.size(16.dp)
+                                tint = Color(0xFF64B5F6),
+                                modifier = Modifier.size(18.dp)
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = "Deleted items will stay in the Recycle Bin for 1 hour before being permanently deleted.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xFFA0A0A0),
-                                fontSize = 11.sp
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    lineHeight = 16.sp
+                                ),
+                                color = Color(0xFFB0CDEB),
+                                fontSize = 11.5.sp
                             )
                         }
                     }
@@ -219,7 +233,7 @@ fun DeleteConfirmationDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         TextButton(onClick = onDismissRequest) {
-                            Text("Cancel", color = Color.White)
+                            Text("Cancel", color = Color(0xFFCCCCCC))
                         }
 
                         Spacer(modifier = Modifier.width(10.dp))
@@ -230,8 +244,8 @@ fun DeleteConfirmationDialog(
                             modifier = Modifier.semantics { contentDescription = "Confirm Delete" },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.error,
-                                disabledContainerColor = Color(0xFF333333),
-                                disabledContentColor = Color(0xFF777777)
+                                disabledContainerColor = Color(0xFF2C2424),
+                                disabledContentColor = Color(0xFF6E5656)
                             ),
                             shape = RoundedCornerShape(10.dp)
                         ) {
@@ -269,21 +283,21 @@ private fun DeleteItemCard(file: File) {
     val iconColor = remember(fileItem) { getIconColor(fileItem) }
 
     Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = Color(0xFF141414),
-        border = BorderStroke(1.dp, Color(0xFF262626)),
+        shape = RoundedCornerShape(10.dp),
+        color = Color(0xFF1E2026),
+        border = BorderStroke(1.dp, Color(0xFF2B2D35)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(
                 modifier = Modifier
                     .size(36.dp)
-                    .background(iconColor.copy(alpha = 0.12f), CircleShape),
+                    .background(iconColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -294,14 +308,14 @@ private fun DeleteItemCard(file: File) {
                 )
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(10.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 SelectionContainer {
                     Text(
                         text = file.name,
                         fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp,
+                        fontSize = 13.5.sp,
                         color = Color.White
                     )
                 }
@@ -310,19 +324,26 @@ private fun DeleteItemCard(file: File) {
                     Text(
                         text = file.parent ?: file.absolutePath,
                         fontSize = 11.sp,
-                        color = Color(0xFFA0A0A0)
+                        color = Color(0xFF8E95A5)
                     )
                 }
             }
 
             Spacer(modifier = Modifier.width(8.dp))
 
-            Text(
-                text = formatFileSize(fileItem.size),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFFCCCCCC)
-            )
+            Surface(
+                shape = RoundedCornerShape(6.dp),
+                color = Color(0xFF16171B),
+                border = BorderStroke(1.dp, Color(0xFF2D3039))
+            ) {
+                Text(
+                    text = formatFileSize(fileItem.size),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFFCCD2E3),
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                )
+            }
         }
     }
 }

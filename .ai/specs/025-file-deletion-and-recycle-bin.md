@@ -1,6 +1,6 @@
 # Specification: 025-file-deletion-and-recycle-bin
 
-**Status**: IN_PROGRESS
+**Status**: DONE
 
 ---
 
@@ -42,11 +42,12 @@
 
 ### 2. Delete Confirmation Dialog
 - Create [DeleteConfirmationDialog.kt](file:///Users/personal/AndroidStudioProjects/TagStash/app/src/main/java/com/anshuman/tagstash/ui/components/DeleteConfirmationDialog.kt):
-  - Checkbox at the top with text: *"Click here if you are sure you want to delete this item"* (or *"these N items"* for multi-selection).
+  - **Tri-Tone Visual Hierarchy**:
+    1. **Cautionary Checkbox Card**: Crimson/Coral tint (`#23191B` unchecked / `#38151A` checked) with red outline (`#4E262A` unchecked / `#E53935` checked), checkbox, and confirmation text: *"Click here if you are sure you want to delete this item"* (or *"these N items"* for multi-selection).
+    2. **Inset Deleted Items Well**: Dark recessed container well (`#141518`, border `#25262B`) holding elevated item tiles (`#1E2026`, border `#2B2D35`) with file icon, non-truncated file name, parent path, and formatted file size.
+    3. **Informational Callout**: Soft deep indigo/blue notice card (`#0F1E2E`, border `#1B3B5F`) with info icon (`#64B5F6`) and retention message: *"Deleted items will stay in the Recycle Bin for 1 hour before being permanently deleted."*
   - Summary header: For multi-selection, displays item count and total size (e.g., *"3 items • Total: 14.8 MB"*).
-  - Scrollable list of items to be deleted (file icon, file name without truncation, formatted size, original location).
-  - Info note: *"Deleted items will be moved to the Recycle Bin for 1 hour before being permanently deleted."*
-  - Bottom buttons: "Cancel" and red "Delete" button (enabled **only** when checkbox is checked).
+  - Bottom buttons: "Cancel" (text button) and red "Delete" button (enabled **only** when checkbox is checked).
 
 ### 3. UI Entry Points & Navigation
 - **File Row Context Menu** ([FileRowItem.kt](file:///Users/personal/AndroidStudioProjects/TagStash/app/src/main/java/com/anshuman/tagstash/ui/components/FileRowItem.kt)):
