@@ -62,13 +62,9 @@ import com.anshuman.tagstash.data.utils.getImageDimensions
 import com.anshuman.tagstash.data.utils.getSiblingMedia
 import com.anshuman.tagstash.data.utils.isImage
 import com.anshuman.tagstash.data.utils.isVideo
-import com.anshuman.tagstash.ui.components.CapacityLimitDialog
-import com.anshuman.tagstash.ui.components.ClipboardDialog
-import com.anshuman.tagstash.ui.components.DeleteConfirmationDialog
-import com.anshuman.tagstash.ui.components.FilePropertiesDialog
 import com.anshuman.tagstash.ui.components.MediaPlayerBottomControls
+import com.anshuman.tagstash.ui.components.MediaPlayerDialogs
 import com.anshuman.tagstash.ui.components.MediaPlayerTopBar
-import com.anshuman.tagstash.ui.components.RenameDialog
 import com.anshuman.tagstash.ui.components.ZoomableImageView
 import com.anshuman.tagstash.ui.components.clampOffset
 import kotlinx.coroutines.Dispatchers
@@ -85,6 +81,9 @@ fun MediaPlayerScreen(
     onToggleGlobalLoop: (Boolean) -> Unit,
     onClose: () -> Unit,
     onNavigateToMedia: (File) -> Unit,
+    playlist: List<File>? = null,
+    onDeleteMedia: ((File) -> Unit)? = null,
+    onRenameMedia: ((oldFile: File, newFile: File) -> Unit)? = null,
     onSettingsClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -96,10 +95,14 @@ fun MediaPlayerScreen(
     var showDeleteDialog by rememberSaveable { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
-    val siblingMedia = remember(file) { getSiblingMedia(file) }
+    val siblingMedia = remember(file, playlist) { playlist ?: getSiblingMedia(file) }
     val currentIndex = remember(file, siblingMedia) {
         siblingMedia.indexOfFirst { it.absolutePath == file.absolutePath }.coerceAtLeast(0)
     }
+    val hasPrevious = currentIndex > 0
+    val hasNext = currentIndex < siblingMedia.size - 1
+    val prevFile = if (hasPrevious) siblingMedia[currentIndex - 1] else null
+    val nextFile = if (hasNext) siblingMedia[currentIndex + 1] else null
 
     var scale by remember(file) { mutableStateOf(1.0f) }
     var offset by remember(file) { mutableStateOf(Offset.Zero) }
@@ -342,6 +345,10 @@ fun MediaPlayerScreen(
                 onRename = { showRenameDialog = true },
                 onShowProperties = { showPropertiesDialog = true },
                 onDelete = { showDeleteDialog = true },
+                onPrevious = { prevFile?.let { onNavigateToMedia(it) } },
+                onNext = { nextFile?.let { onNavigateToMedia(it) } },
+                hasPrevious = hasPrevious,
+                hasNext = hasNext,
                 onSettingsClick = onSettingsClick
             )
         }
@@ -380,113 +387,96 @@ fun MediaPlayerScreen(
         }
     }
 
-    if (showRenameDialog) {
-        RenameDialog(
-            file = file,
-            onConfirmRename = { newName ->
-                showRenameDialog = false
-                val parent = file.parentFile ?: File("/")
-                val targetFile = File(parent, newName)
-                coroutineScope.launch {
-                    val renamed = withContext(Dispatchers.IO) {
-                        file.renameTo(targetFile)
-                    }
-                    if (renamed) {
-                        val auditLogHelper = AuditLogDatabaseHelper.getInstance(context)
-                        val itemDetail = AuditLogItemDetail(
-                            sourcePath = file.absolutePath,
-                            destinationPath = targetFile.absolutePath,
-                            command = "RENAME",
-                            outcome = AuditItemOutcome.RENAMED,
-                            fileName = targetFile.name,
-                            fileSize = targetFile.length(),
-                            isDirectory = false
-                        )
-                        auditLogHelper.insertLog(
-                            AuditLogEntry(
-                                timestamp = System.currentTimeMillis(),
-                                actionType = AuditActionType.RENAME,
-                                summary = "Renamed ${file.name} to ${targetFile.name}",
-                                destinationDirectory = parent.name.ifEmpty { "/" },
-                                totalItems = 1,
-                                items = listOf(itemDetail)
-                            )
-                        )
-                        onNavigateToMedia(targetFile)
-                    }
+    MediaPlayerDialogs(
+        file = file,
+        showRenameDialog = showRenameDialog,
+        onConfirmRename = { newName ->
+            showRenameDialog = false
+            val parent = file.parentFile ?: File("/")
+            val targetFile = File(parent, newName)
+            coroutineScope.launch {
+                val renamed = withContext(Dispatchers.IO) {
+                    file.renameTo(targetFile)
                 }
-            },
-            onDismissRequest = { showRenameDialog = false }
-        )
-    }
-
-    if (showPropertiesDialog) {
-        FilePropertiesDialog(
-            file = file,
-            onDismissRequest = { showPropertiesDialog = false }
-        )
-    }
-
-    if (showClipboardDialog) {
-        ClipboardDialog(
-            clipboardItems = AppClipboard.items,
-            onClearAll = { AppClipboard.clear() },
-            onDismissRequest = { showClipboardDialog = false }
-        )
-    }
-
-    if (showCapacityLimitDialog) {
-        CapacityLimitDialog(onDismiss = { showCapacityLimitDialog = false })
-    }
-
-    if (showDeleteDialog) {
-        DeleteConfirmationDialog(
-            files = listOf(file),
-            onConfirmDelete = {
-                showDeleteDialog = false
-                val currentSiblings = getSiblingMedia(file)
-                val currIdx = currentSiblings.indexOfFirst { it.absolutePath == file.absolutePath }
-                val remaining = currentSiblings.filter { it.absolutePath != file.absolutePath }
-                val nextTarget = when {
-                    remaining.isEmpty() -> null
-                    currIdx in remaining.indices -> remaining[currIdx]
-                    else -> remaining.last()
-                }
-
-                coroutineScope.launch {
-                    val trashed = RecycleBinDatabaseHelper.getInstance(context).moveToRecycleBin(listOf(file), context)
-                    if (trashed.isNotEmpty()) {
-                        val auditLogHelper = AuditLogDatabaseHelper.getInstance(context)
-                        val itemDetail = AuditLogItemDetail(
-                            sourcePath = file.absolutePath,
-                            destinationPath = trashed.first().trashedPath,
-                            command = "DELETE",
-                            outcome = AuditItemOutcome.TRASHED,
-                            fileName = file.name,
-                            fileSize = trashed.first().fileSize,
-                            isDirectory = false
+                if (renamed) {
+                    val auditLogHelper = AuditLogDatabaseHelper.getInstance(context)
+                    val itemDetail = AuditLogItemDetail(
+                        sourcePath = file.absolutePath,
+                        destinationPath = targetFile.absolutePath,
+                        command = "RENAME",
+                        outcome = AuditItemOutcome.RENAMED,
+                        fileName = targetFile.name,
+                        fileSize = targetFile.length(),
+                        isDirectory = false
+                    )
+                    auditLogHelper.insertLog(
+                        AuditLogEntry(
+                            timestamp = System.currentTimeMillis(),
+                            actionType = AuditActionType.RENAME,
+                            summary = "Renamed ${file.name} to ${targetFile.name}",
+                            destinationDirectory = parent.name.ifEmpty { "/" },
+                            totalItems = 1,
+                            items = listOf(itemDetail)
                         )
-                        auditLogHelper.insertLog(
-                            AuditLogEntry(
-                                timestamp = System.currentTimeMillis(),
-                                actionType = AuditActionType.DELETE,
-                                summary = "Deleted ${file.name} to Recycle Bin",
-                                destinationDirectory = "Recycle Bin",
-                                totalItems = 1,
-                                items = listOf(itemDetail)
-                            )
-                        )
-                    }
-                    if (nextTarget == null) {
-                        onClose()
-                    } else {
-                        scale = 1.0f
-                        offset = Offset.Zero
-                        onNavigateToMedia(nextTarget)
-                    }
+                    )
+                    onRenameMedia?.invoke(file, targetFile)
+                    onNavigateToMedia(targetFile)
                 }
-            },
-            onDismissRequest = { showDeleteDialog = false }
-        )
-    }
+            }
+        },
+        onDismissRename = { showRenameDialog = false },
+        showPropertiesDialog = showPropertiesDialog,
+        onDismissProperties = { showPropertiesDialog = false },
+        showClipboardDialog = showClipboardDialog,
+        onDismissClipboard = { showClipboardDialog = false },
+        showCapacityLimitDialog = showCapacityLimitDialog,
+        onDismissCapacityLimit = { showCapacityLimitDialog = false },
+        showDeleteDialog = showDeleteDialog,
+        onConfirmDelete = {
+            showDeleteDialog = false
+            val currentMediaList = playlist ?: getSiblingMedia(file)
+            val currIdx = currentMediaList.indexOfFirst { it.absolutePath == file.absolutePath }
+            val remaining = currentMediaList.filter { it.absolutePath != file.absolutePath }
+            val nextTarget = when {
+                remaining.isEmpty() -> null
+                currIdx in remaining.indices -> remaining[currIdx]
+                else -> remaining.last()
+            }
+
+            coroutineScope.launch {
+                val trashed = RecycleBinDatabaseHelper.getInstance(context).moveToRecycleBin(listOf(file), context)
+                if (trashed.isNotEmpty()) {
+                    val auditLogHelper = AuditLogDatabaseHelper.getInstance(context)
+                    val itemDetail = AuditLogItemDetail(
+                        sourcePath = file.absolutePath,
+                        destinationPath = trashed.first().trashedPath,
+                        command = "DELETE",
+                        outcome = AuditItemOutcome.TRASHED,
+                        fileName = file.name,
+                        fileSize = trashed.first().fileSize,
+                        isDirectory = false
+                    )
+                    auditLogHelper.insertLog(
+                        AuditLogEntry(
+                            timestamp = System.currentTimeMillis(),
+                            actionType = AuditActionType.DELETE,
+                            summary = "Deleted ${file.name} to Recycle Bin",
+                            destinationDirectory = "Recycle Bin",
+                            totalItems = 1,
+                            items = listOf(itemDetail)
+                        )
+                    )
+                }
+                onDeleteMedia?.invoke(file)
+                if (nextTarget == null) {
+                    onClose()
+                } else {
+                    scale = 1.0f
+                    offset = Offset.Zero
+                    onNavigateToMedia(nextTarget)
+                }
+            }
+        },
+        onDismissDelete = { showDeleteDialog = false }
+    )
 }
