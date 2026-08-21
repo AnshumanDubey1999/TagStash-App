@@ -3,6 +3,24 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.roborazzi)
+    alias(libs.plugins.detekt)
+}
+
+detekt {
+    toolVersion = libs.versions.detekt.get()
+    config.setFrom(files("${rootProject.rootDir}/config/detekt/detekt.yml"))
+    buildUponDefaultConfig = true
+    allRules = false
+    autoCorrect = false
+}
+
+tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+    reports {
+        html.required.set(true)
+        xml.required.set(true)
+        txt.required.set(false)
+        sarif.required.set(false)
+    }
 }
 
 android {
@@ -139,4 +157,34 @@ tasks.withType<Test>().configureEach {
     if (name.contains("ReleaseUnitTest")) {
         isEnabled = false
     }
+}
+
+val checkFileLength by tasks.registering {
+    group = "verification"
+    description = "Checks that no production Kotlin file in app/src/main/java exceeds 500 lines of code."
+    doLast {
+        val maxLines = 500
+        val srcDir = file("src/main/java")
+        val violations = mutableListOf<Pair<File, Int>>()
+
+        srcDir.walkTopDown().filter { it.isFile && it.extension == "kt" }.forEach { file ->
+            val lines = file.readLines().filter { it.trim().isNotEmpty() && !it.trim().startsWith("//") && !it.trim().startsWith("/*") && !it.trim().startsWith("*") }
+            if (lines.size > maxLines) {
+                violations.add(file to lines.size)
+            }
+        }
+
+        if (violations.isNotEmpty()) {
+            val report = violations.joinToString("\n") { (file, count) ->
+                "  - ${file.relativeTo(projectDir)}: $count lines of code (max allowed: $maxLines)"
+            }
+            throw GradleException("File length limit exceeded! The following production files exceed $maxLines lines of code:\n$report")
+        } else {
+            println("✓ All production Kotlin files in app/src/main/java are under $maxLines lines of code.")
+        }
+    }
+}
+
+tasks.named("check") {
+    dependsOn(checkFileLength)
 }
