@@ -506,7 +506,7 @@ fun MainScreen(
                             scannedCount = scannedCount,
                             query = activeSearchQuery!!,
                             includeSubfolders = searchIncludeSubfolders,
-                            baseDirectory = currentDirectory,
+                            homeDirectory = homeDirectory,
                             onBackToFolder = {
                                 activeSearchQuery = null
                                 searchResults = emptyList()

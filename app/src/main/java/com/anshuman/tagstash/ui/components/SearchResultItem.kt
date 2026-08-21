@@ -34,7 +34,7 @@ import java.io.File
 @Composable
 fun SearchResultItem(
     item: FileItem,
-    baseDirectory: File,
+    homeDirectory: File = File("/storage/emulated/0"),
     modifier: Modifier = Modifier
 ) {
     val fileIcon = remember(item) { getFileIcon(item) }
@@ -42,20 +42,22 @@ fun SearchResultItem(
     val formattedSize = remember(item.size) { formatFileSize(item.size) }
     val formattedDate = remember(item.lastModified) { formatLastModified(item.lastModified) }
 
-    // Compute relative location or parent path
-    val locationText = remember(item.path, baseDirectory) {
+    // Compute location relative to homeDirectory (. means in home directory)
+    val locationText = remember(item.path, homeDirectory) {
         val file = File(item.path)
         val parent = file.parentFile
         if (parent != null) {
-            val basePrefix = baseDirectory.absolutePath
-            if (parent.absolutePath.startsWith(basePrefix)) {
-                val relative = parent.absolutePath.removePrefix(basePrefix).trimStart('/')
+            val homePath = homeDirectory.absolutePath
+            if (parent.absolutePath == homePath) {
+                "."
+            } else if (parent.absolutePath.startsWith(homePath)) {
+                val relative = parent.absolutePath.removePrefix(homePath).trimStart('/')
                 if (relative.isEmpty()) "." else relative
             } else {
                 parent.name.ifEmpty { parent.absolutePath }
             }
         } else {
-            "/"
+            "."
         }
     }
 
