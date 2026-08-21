@@ -1,6 +1,7 @@
 package com.anshuman.tagstash.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,6 +35,7 @@ import java.io.File
 @Composable
 fun SearchResultItem(
     item: FileItem,
+    onClick: () -> Unit,
     homeDirectory: File = File("/storage/emulated/0"),
     modifier: Modifier = Modifier
 ) {
@@ -64,6 +66,7 @@ fun SearchResultItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

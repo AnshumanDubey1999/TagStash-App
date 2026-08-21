@@ -22,6 +22,8 @@ import com.anshuman.tagstash.data.utils.executeDeleteOperations
 import com.anshuman.tagstash.data.utils.executeFolderSearch
 import com.anshuman.tagstash.data.utils.executePasteOperations
 import com.anshuman.tagstash.data.utils.executeRenameOperation
+import com.anshuman.tagstash.data.utils.isImage
+import com.anshuman.tagstash.data.utils.isVideo
 import com.anshuman.tagstash.ui.components.MainScreenContent
 import com.anshuman.tagstash.ui.components.MainScreenDialogs
 import com.anshuman.tagstash.ui.components.OperationProgressState
@@ -204,6 +206,10 @@ fun MainScreen(
             onCountUpdate = { scannedCount = it }
         )
         isSearching = false
+    }
+
+    val searchMediaPlaylist = remember(searchResults) {
+        searchResults.filter { !it.isDirectory && (isImage(it.name) || isVideo(it.name)) }.map { File(it.path) }
     }
 
     LaunchedEffect(Unit) {
@@ -421,6 +427,29 @@ fun MainScreen(
         onMediaPlayerSettingsClick = {
             activeMediaPlayerFile = null
             currentScreenView = "SETTINGS"
+            refreshTrigger++
+        },
+        mediaPlaylist = if (activeSearchQuery != null) searchMediaPlaylist else null,
+        onDeleteMedia = { deletedFile ->
+            if (activeSearchQuery != null) {
+                searchResults = searchResults.filter { it.path != deletedFile.absolutePath }
+            }
+            refreshTrigger++
+        },
+        onRenameMedia = { oldFile, newFile ->
+            if (activeSearchQuery != null) {
+                searchResults = searchResults.map { item ->
+                    if (item.path == oldFile.absolutePath) {
+                        item.copy(
+                            name = newFile.name,
+                            path = newFile.absolutePath,
+                            lastModified = newFile.lastModified()
+                        )
+                    } else {
+                        item
+                    }
+                }
+            }
             refreshTrigger++
         },
         showSearchDialog = showSearchDialog,

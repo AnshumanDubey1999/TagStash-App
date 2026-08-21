@@ -33,6 +33,9 @@ fun MainScreenDialogs(
     onCloseMediaPlayer: () -> Unit,
     onNavigateToMedia: (File) -> Unit,
     onMediaPlayerSettingsClick: () -> Unit,
+    mediaPlaylist: List<File>? = null,
+    onDeleteMedia: ((File) -> Unit)? = null,
+    onRenameMedia: ((File, File) -> Unit)? = null,
     showSearchDialog: Boolean,
     activeSearchQuery: String?,
     searchIncludeSubfolders: Boolean,
@@ -100,6 +103,9 @@ fun MainScreenDialogs(
             onToggleGlobalLoop = onToggleGlobalLoop,
             onClose = onCloseMediaPlayer,
             onNavigateToMedia = onNavigateToMedia,
+            playlist = mediaPlaylist,
+            onDeleteMedia = onDeleteMedia,
+            onRenameMedia = onRenameMedia,
             onSettingsClick = onMediaPlayerSettingsClick
         )
     }

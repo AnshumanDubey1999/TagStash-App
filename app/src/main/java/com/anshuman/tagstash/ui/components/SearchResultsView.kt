@@ -38,6 +38,7 @@ fun SearchResultsView(
     includeSubfolders: Boolean,
     homeDirectory: File = File("/storage/emulated/0"),
     onBackToFolder: () -> Unit,
+    onItemClick: (FileItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -106,6 +107,7 @@ fun SearchResultsView(
                 items(searchResults) { searchItem ->
                     SearchResultItem(
                         item = searchItem,
+                        onClick = { onItemClick(searchItem) },
                         homeDirectory = homeDirectory
                     )
                 }
