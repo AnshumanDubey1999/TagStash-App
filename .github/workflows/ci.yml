@@ -34,3 +34,21 @@ jobs:
 
       - name: Run Tests (test)
         run: ./gradlew test
+
+      - name: Upload Unit Test HTML Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: app/build/reports/tests/
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Upload Unit Test XML Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: app/build/test-results/
+          if-no-files-found: warn
+          retention-days: 14
