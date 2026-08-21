@@ -86,28 +86,32 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           RELEASE_BRANCH="release/v${{ env.NEW_VERSION_NAME }}"
-          git checkout -b "$RELEASE_BRANCH"
+          git checkout -B "$RELEASE_BRANCH"
           git add gradle.properties
           git commit -m "[release] Bump version to v${{ env.NEW_VERSION_NAME }}"
-          git push origin "$RELEASE_BRANCH"
+          git push origin "$RELEASE_BRANCH" --force
 
-          # Create Pull Request
-          PR_URL=$(gh pr create \
-            --base main \
-            --head "$RELEASE_BRANCH" \
-            --title "[release] Bump version to v${{ env.NEW_VERSION_NAME }}" \
-            --body "Automated version bump to v${{ env.NEW_VERSION_NAME }} for release pipeline.")
+          # Create or locate existing Pull Request
+          PR_URL=$(gh pr list --head "$RELEASE_BRANCH" --base main --json url --jq '.[0].url' || true)
+          if [ -z "$PR_URL" ] || [ "$PR_URL" = "null" ]; then
+            PR_URL=$(gh pr create \
+              --base main \
+              --head "$RELEASE_BRANCH" \
+              --title "[release] Bump version to v${{ env.NEW_VERSION_NAME }}" \
+              --body "Automated version bump to v${{ env.NEW_VERSION_NAME }} for release pipeline.")
+          fi
 
-          echo "Created PR: $PR_URL"
+          echo "Targeting PR: $PR_URL"
 
           # Merge Pull Request & Delete Branch
           gh pr merge "$PR_URL" --merge --delete-branch || gh pr merge "$PR_URL" --auto --merge
 
-          # Switch back to main, pull the merged version bump, and tag
+          # Switch back to main, sync with remote origin/main, and tag
+          git fetch origin main
           git checkout main
-          git pull origin main
+          git reset --hard origin/main
           git tag "${{ env.TAG_NAME }}"
-          git push origin "${{ env.TAG_NAME }}"
+          git push origin "${{ env.TAG_NAME }}" --force
 
       - name: Decode Release Keystore
         env:
