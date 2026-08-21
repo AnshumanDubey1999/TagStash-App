@@ -52,3 +52,15 @@ jobs:
           path: app/build/test-results/
           if-no-files-found: warn
           retention-days: 14
+
+      - name: Upload Roborazzi Screenshots & Outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: roborazzi-screenshots
+          path: |
+            app/screenshots/
+            app/build/outputs/roborazzi/
+            app/build/reports/roborazzi/
+          if-no-files-found: warn
+          retention-days: 14
