@@ -53,6 +53,10 @@ Users need a convenient way to search and filter files and folders by name withi
   - **A**: "Search" label with `Icons.Default.Search`.
 - **Q**: Can items be opened or manipulated from search results in this spec?
   - **A**: No, this spec focuses on the search dialog, scanning engine, and results display list. Future specs can introduce actions on search results.
+- **Q**: How should focus and keyboard behave when opening the search dialog?
+  - **A**: Focus is automatically requested on the search text field upon opening, with soft keyboard shown and IME action set to `Search`.
+- **Q**: How is the location path formatted in search results?
+  - **A**: Location is relative to the user's `homeDirectory`. If the item is directly in the home directory, the location is `.`. Subfolder paths show relative path from home (e.g. `images/pngs`).
 
 ---
 
