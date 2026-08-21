@@ -281,6 +281,10 @@ class MainScreenTest {
         composeTestRule.onNodeWithText("2 items selected").assertIsDisplayed()
 
         composeTestRule.onRoot().captureRoboImage("screenshots/main_screen_selection_mode.png")
+
+        // Close selection mode
+        composeTestRule.onNodeWithContentDescription("Close selection mode").performClick()
+        composeTestRule.waitForIdle()
     }
 
     @Test
@@ -313,6 +317,10 @@ class MainScreenTest {
 
         // Verify selection mode active and images is selected
         composeTestRule.onNodeWithText("1 item selected").assertIsDisplayed()
+
+        // Close selection mode
+        composeTestRule.onNodeWithContentDescription("Close selection mode").performClick()
+        composeTestRule.waitForIdle()
     }
 
     @Test
@@ -325,6 +333,11 @@ class MainScreenTest {
                     homeDirectory = testDataDir
                 )
             }
+        }
+
+        // Wait for directory contents to load
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("images").fetchSemanticsNodes().isNotEmpty()
         }
 
         // Enter selection mode
@@ -347,6 +360,14 @@ class MainScreenTest {
 
         composeTestRule.onNodeWithText("Selection Properties").assertIsDisplayed()
         composeTestRule.onRoot().captureRoboImage("screenshots/main_screen_selection_properties_dialog.png")
+
+        // Close Selection Properties Dialog
+        composeTestRule.onNodeWithText("Close").performClick()
+        composeTestRule.waitForIdle()
+
+        // Close selection mode
+        composeTestRule.onNodeWithContentDescription("Close selection mode").performClick()
+        composeTestRule.waitForIdle()
     }
 
     @Test
@@ -359,6 +380,11 @@ class MainScreenTest {
                     homeDirectory = testDataDir
                 )
             }
+        }
+
+        // Wait for directory contents to load
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("images").fetchSemanticsNodes().isNotEmpty()
         }
 
         // Enter selection mode and select an item
@@ -562,6 +588,11 @@ class MainScreenTest {
                     homeDirectory = testDataDir
                 )
             }
+        }
+
+        // Wait for directory contents to load
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("images").fetchSemanticsNodes().isNotEmpty()
         }
 
         // Enter selection mode
