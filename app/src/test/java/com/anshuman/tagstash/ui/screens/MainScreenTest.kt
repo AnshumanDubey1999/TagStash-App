@@ -1,6 +1,7 @@
 package com.anshuman.tagstash.ui.screens
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -1896,8 +1897,8 @@ class MainScreenTest {
         // Capture screenshot of media player opened from search
         composeTestRule.onRoot().captureRoboImage("screenshots/search_results_media_player.png")
 
-        // Click Next button
-        composeTestRule.onNodeWithContentDescription("Next media").performClick()
+        // Tap right side of screen (>70% width) to navigate to Next media item
+        composeTestRule.onRoot().performTouchInput { click(androidx.compose.ui.geometry.Offset(x = width * 0.85f, y = height * 0.5f)) }
         composeTestRule.waitForIdle()
 
         // Verify next item 2.png is displayed
@@ -1906,8 +1907,8 @@ class MainScreenTest {
         }
         composeTestRule.onAllNodesWithText("2.png")[0].assertIsDisplayed()
 
-        // Click Previous button
-        composeTestRule.onNodeWithContentDescription("Previous media").performClick()
+        // Tap left side of screen (<30% width) to navigate to Previous media item
+        composeTestRule.onRoot().performTouchInput { click(androidx.compose.ui.geometry.Offset(x = width * 0.15f, y = height * 0.5f)) }
         composeTestRule.waitForIdle()
 
         // Verify 1.png is displayed again
@@ -1915,6 +1916,11 @@ class MainScreenTest {
             composeTestRule.onAllNodesWithText("1.png").fetchSemanticsNodes().isNotEmpty()
         }
         composeTestRule.onAllNodesWithText("1.png")[0].assertIsDisplayed()
+
+        // Toggle overlays to show top bar for menu actions
+        composeTestRule.onRoot().performTouchInput { click(androidx.compose.ui.geometry.Offset(x = width * 0.5f, y = height * 0.5f)) }
+        composeTestRule.mainClock.advanceTimeBy(500)
+        composeTestRule.waitForIdle()
 
         // Test in-player Copy action
         composeTestRule.onNodeWithContentDescription("More options").performClick()

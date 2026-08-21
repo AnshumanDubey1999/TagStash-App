@@ -99,10 +99,6 @@ fun MediaPlayerScreen(
     val currentIndex = remember(file, siblingMedia) {
         siblingMedia.indexOfFirst { it.absolutePath == file.absolutePath }.coerceAtLeast(0)
     }
-    val hasPrevious = currentIndex > 0
-    val hasNext = currentIndex < siblingMedia.size - 1
-    val prevFile = if (hasPrevious) siblingMedia[currentIndex - 1] else null
-    val nextFile = if (hasNext) siblingMedia[currentIndex + 1] else null
 
     var scale by remember(file) { mutableStateOf(1.0f) }
     var offset by remember(file) { mutableStateOf(Offset.Zero) }
@@ -345,10 +341,6 @@ fun MediaPlayerScreen(
                 onRename = { showRenameDialog = true },
                 onShowProperties = { showPropertiesDialog = true },
                 onDelete = { showDeleteDialog = true },
-                onPrevious = { prevFile?.let { onNavigateToMedia(it) } },
-                onNext = { nextFile?.let { onNavigateToMedia(it) } },
-                hasPrevious = hasPrevious,
-                hasNext = hasNext,
                 onSettingsClick = onSettingsClick
             )
         }

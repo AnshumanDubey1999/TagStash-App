@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.ContentPasteGo
@@ -58,10 +56,6 @@ fun MediaPlayerTopBar(
     onShowProperties: () -> Unit,
     onDelete: () -> Unit,
     onSettingsClick: (() -> Unit)?,
-    onPrevious: (() -> Unit)? = null,
-    onNext: (() -> Unit)? = null,
-    hasPrevious: Boolean = false,
-    hasNext: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     var showMenu by remember { mutableStateOf(false) }
@@ -89,20 +83,7 @@ fun MediaPlayerTopBar(
                 )
             }
 
-            if (onPrevious != null) {
-                IconButton(
-                    onClick = onPrevious,
-                    enabled = hasPrevious
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ChevronLeft,
-                        contentDescription = "Previous media",
-                        tint = if (hasPrevious) Color.White else Color.White.copy(alpha = 0.3f)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(8.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -119,19 +100,6 @@ fun MediaPlayerTopBar(
                     color = Color.White.copy(alpha = 0.6f),
                     fontSize = 12.sp
                 )
-            }
-
-            if (onNext != null) {
-                IconButton(
-                    onClick = onNext,
-                    enabled = hasNext
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = "Next media",
-                        tint = if (hasNext) Color.White else Color.White.copy(alpha = 0.3f)
-                    )
-                }
             }
 
             Box {

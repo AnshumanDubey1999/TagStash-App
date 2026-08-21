@@ -26,8 +26,8 @@ Following Specification 033 (Folder Search & Filter), search results currently r
   - When `playlist` is provided (e.g. from search results), the media player uses this ordered list for navigation instead of scanning directory siblings (`getSiblingMedia(file)`).
   - When `playlist` is `null`, default to `getSiblingMedia(file)` for standard directory browsing.
 - **Previous & Next Navigation**:
-  - Top bar arrows (`chevron_left` and `chevron_right`) navigate back and forth across the search media matches.
-  - Previous / Next buttons disable gracefully when at the first or last item of the playlist.
+  - Screen tap zones on the left (<30% screen width) and right (>70% screen width) navigate back and forth across media matches in both search mode and standard directory viewing.
+  - No visible arrow buttons in the media player top bar in any scenario.
 - **Return / Dismissal**:
   - Closing the media player (via `X` button or Back gesture) returns directly to the search results view, preserving the query, include-subfolders toggle state, and scanned results.
 
