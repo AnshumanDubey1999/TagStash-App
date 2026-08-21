@@ -1,6 +1,6 @@
 # Specification: 032-branch-workflow-and-ci
 
-**Status**: IN_PROGRESS
+**Status**: DONE
 
 ---
 
