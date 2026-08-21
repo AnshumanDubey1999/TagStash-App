@@ -66,9 +66,12 @@ This file defines the project-scoped rules, constraints, and development guideli
 4. **Testing**:
    * Plan unit tests for tag-filtering logic, Room DAO operations, and file size formatting utilities.
    * Implement UI/Screenshot testing strategies for Compose views.
-5. **Git Commits**:
-   * Do NOT commit any changes to git without explicit user permission.
-   * Each commit message must start with the specification number (e.g., `[001] Add basic file browser UI`).
+5. **Git Commits & Branching**:
+   * **Never commit or push directly to `main`**. All development is conducted on dedicated feature branches.
+   * **Branch Naming**: Branch off from updated `main` (`git pull --rebase`) using the format `<spec-num>-<short-description>` (e.g., `033-media-player-playlists`).
+   * **Small & Frequent Commits**: The Agent is permitted and encouraged to make frequent, small, logical commits directly on the feature branch during implementation without asking for confirmation per commit.
+   * **Commit Message Format**: Every commit message must start with the specification number (e.g., `[033] Add playlist model and DAO`).
+   * **Remote Actions**: Pushing branches to GitHub, opening Pull Requests, reviewing, and merging to `main` is handled exclusively by the user.
 
 ---
 
@@ -91,10 +94,13 @@ When implementing new features or making significant changes:
    * If a spec represents a change that is too large for a single implementation action, plan to split it into a separate spec focusing on the simplest possible next step first.
    * **CRITICAL**: You must ask the user for explicit permission before creating a new/split spec file.
 5. **Review & Approval**: Ask the user to review the spec and provide feedback. Refine the spec file based on this feedback until the user explicitly approves it.
-6. **Implementation**: Once approved, request user permission to change the state to `IN_PROGRESS` and implement the changes based on the specification.
-7. **Post-Implementation Verification & Commit**:
+6. **Branch Setup & Implementation**:
+   * Once approved and transitioned to `IN_PROGRESS`:
+     * Ensure `main` is updated and create/switch to the feature branch `<spec-num>-<short-description>`.
+     * Implement changes incrementally, making small, focused commits on the feature branch.
+7. **Post-Implementation Verification & Hand-Off**:
    * Once implementation work is finished:
-     * Verify the code compiles and runs checks successfully.
-     * Ask the user to verify the changes and address/answer any questions they may have.
-     * Ensure all code changes are fully committed to git before changing the spec state.
+     * Verify the code compiles and `./gradlew test` passes locally.
+     * Ensure all code changes are committed to the feature branch.
      * Request user permission to mark the spec state as `DONE`.
+     * Provide a ready-to-use **Pull Request summary** formatted according to `.github/pull_request_template.md` for the user to copy/paste into GitHub.
