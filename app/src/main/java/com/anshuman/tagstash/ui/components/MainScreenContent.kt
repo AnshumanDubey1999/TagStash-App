@@ -25,6 +25,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anshuman.tagstash.data.clipboard.AppClipboard
 import com.anshuman.tagstash.data.model.FileItem
+import com.anshuman.tagstash.data.utils.isImage
+import com.anshuman.tagstash.data.utils.isVideo
+import com.anshuman.tagstash.data.utils.openFileWithOS
 import java.io.File
 
 @Composable
@@ -134,7 +137,17 @@ fun MainScreenContent(
                         query = activeSearchQuery,
                         includeSubfolders = searchIncludeSubfolders,
                         homeDirectory = homeDirectory,
-                        onBackToFolder = onBackFromSearch
+                        onBackToFolder = onBackFromSearch,
+                        onItemClick = { searchItem ->
+                            val clickedFile = File(searchItem.path)
+                            if (searchItem.isDirectory) {
+                                onNavigateDirectory(clickedFile)
+                            } else if (isImage(searchItem.name) || isVideo(searchItem.name)) {
+                                onOpenMediaFile(clickedFile)
+                            } else {
+                                openFileWithOS(context, clickedFile)
+                            }
+                        }
                     )
                 } else {
                     MainScreenFileListView(
