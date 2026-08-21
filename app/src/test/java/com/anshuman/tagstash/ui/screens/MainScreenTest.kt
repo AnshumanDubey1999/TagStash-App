@@ -1,6 +1,7 @@
 package com.anshuman.tagstash.ui.screens
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.longClick
@@ -1844,5 +1845,134 @@ class MainScreenTest {
             composeTestRule.onAllNodesWithText("images").fetchSemanticsNodes().isNotEmpty()
         }
         composeTestRule.onNodeWithText("images").assertIsDisplayed()
+    }
+
+    @Test
+    fun testSearchResultsMediaPlaybackAndNavigation() {
+        composeTestRule.setContent {
+            TagStashTheme {
+                MainScreen(
+                    permissionGranted = true,
+                    onRequestPermission = {},
+                    homeDirectory = testDataDir,
+                    initialDirectory = File(testDataDir, "images/pngs")
+                )
+            }
+        }
+
+        // Open search
+        composeTestRule.onNodeWithContentDescription("More options").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Search").performClick()
+        composeTestRule.waitForIdle()
+
+        // Enter query "png"
+        composeTestRule.onNodeWithContentDescription("Search text input").performTextInput("png")
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithContentDescription("Confirm Search").performClick()
+        composeTestRule.waitForIdle()
+
+        // Wait for search results
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("1.png").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // Click on 1.png
+        composeTestRule.onNodeWithText("1.png").performClick()
+        composeTestRule.waitForIdle()
+
+        // Toggle overlays to show top bar
+        composeTestRule.onRoot().performClick()
+        composeTestRule.mainClock.advanceTimeBy(500)
+        composeTestRule.waitForIdle()
+
+        // Verify Media Player top bar opens showing 1.png
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodes(hasContentDescription("Back")).fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithContentDescription("Back").assertIsDisplayed()
+        composeTestRule.onAllNodesWithText("1.png")[0].assertIsDisplayed()
+
+        // Capture screenshot of media player opened from search
+        composeTestRule.onRoot().captureRoboImage("screenshots/search_results_media_player.png")
+
+        // Click Next button
+        composeTestRule.onNodeWithContentDescription("Next media").performClick()
+        composeTestRule.waitForIdle()
+
+        // Verify next item 2.png is displayed
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("2.png").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onAllNodesWithText("2.png")[0].assertIsDisplayed()
+
+        // Click Previous button
+        composeTestRule.onNodeWithContentDescription("Previous media").performClick()
+        composeTestRule.waitForIdle()
+
+        // Verify 1.png is displayed again
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("1.png").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onAllNodesWithText("1.png")[0].assertIsDisplayed()
+
+        // Test in-player Copy action
+        composeTestRule.onNodeWithContentDescription("More options").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Copy").performClick()
+        composeTestRule.waitForIdle()
+        org.junit.Assert.assertEquals(1, AppClipboard.size)
+
+        // Close media player via Back button
+        composeTestRule.onNodeWithContentDescription("Back").performClick()
+        composeTestRule.waitForIdle()
+
+        // Verify returned to search results view
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("Results for: \"png\"").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Results for: \"png\"").assertIsDisplayed()
+    }
+
+    @Test
+    fun testSearchResultsClickDirectoryNavigatesIntoDirectory() {
+        composeTestRule.setContent {
+            TagStashTheme {
+                MainScreen(
+                    permissionGranted = true,
+                    onRequestPermission = {},
+                    homeDirectory = testDataDir,
+                    initialDirectory = File(testDataDir, "images")
+                )
+            }
+        }
+
+        // Open search
+        composeTestRule.onNodeWithContentDescription("More options").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Search").performClick()
+        composeTestRule.waitForIdle()
+
+        // Search for "pngs"
+        composeTestRule.onNodeWithContentDescription("Search text input").performTextInput("pngs")
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithContentDescription("Confirm Search").performClick()
+        composeTestRule.waitForIdle()
+
+        // Wait for search results showing the directory "pngs"
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("pngs").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // Click the directory item
+        composeTestRule.onNodeWithText("pngs").performClick()
+        composeTestRule.waitForIdle()
+
+        // Verify search mode exited and now inside pngs directory showing its contents
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("1.png").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("1.png").assertIsDisplayed()
+        composeTestRule.onNodeWithText("2.png").assertIsDisplayed()
     }
 }
