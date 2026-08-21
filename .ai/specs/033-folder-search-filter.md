@@ -1,6 +1,6 @@
 # Specification: 033-folder-search-filter
 
-**Status**: IN_PROGRESS
+**Status**: DONE
 
 ---
 
