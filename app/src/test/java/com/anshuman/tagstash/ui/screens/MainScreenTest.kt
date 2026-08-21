@@ -782,6 +782,12 @@ class MainScreenTest {
 
             // Verify empty state is shown after deletion
             composeTestRule.onNodeWithText("No Past Actions").assertIsDisplayed()
+
+            // Navigate back to Settings -> MainScreen
+            composeTestRule.onNodeWithContentDescription("Back").performClick()
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithContentDescription("Back").performClick()
+            composeTestRule.waitForIdle()
         } finally {
             sampleFile.delete()
             tempDir.deleteRecursively()
@@ -951,10 +957,14 @@ class MainScreenTest {
         composeTestRule.onNodeWithText("Recycle Bin is Empty").assertIsDisplayed()
         composeTestRule.onNodeWithText("Deleted files will appear here and be kept for 1 hour before permanent removal.").assertIsDisplayed()
 
-        // Click Back
+        // Click Back -> Settings
         composeTestRule.onNodeWithContentDescription("Back").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.onNodeWithText("Settings").assertIsDisplayed()
+
+        // Click Back -> MainScreen
+        composeTestRule.onNodeWithContentDescription("Back").performClick()
+        composeTestRule.waitForIdle()
     }
 
     @Test
@@ -1027,6 +1037,12 @@ class MainScreenTest {
                 composeTestRule.onAllNodesWithText("Recycle Bin is Empty").fetchSemanticsNodes().isNotEmpty()
             }
             composeTestRule.onNodeWithText("Recycle Bin is Empty").assertIsDisplayed()
+
+            // Navigate back to Settings -> MainScreen
+            composeTestRule.onNodeWithContentDescription("Back").performClick()
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithContentDescription("Back").performClick()
+            composeTestRule.waitForIdle()
         } finally {
             file1.delete()
             file2.delete()
@@ -1428,6 +1444,16 @@ class MainScreenTest {
             composeTestRule.onNodeWithText("Action Details").assertIsDisplayed()
             composeTestRule.onNodeWithText("AUTO_DELETE").assertIsDisplayed()
             composeTestRule.onNodeWithText("EXPIRED").assertIsDisplayed()
+
+            // Close dialog
+            composeTestRule.onNodeWithText("Close").performClick()
+            composeTestRule.waitForIdle()
+
+            // Navigate back to Settings -> MainScreen
+            composeTestRule.onNodeWithContentDescription("Back").performClick()
+            composeTestRule.waitForIdle()
+            composeTestRule.onNodeWithContentDescription("Back").performClick()
+            composeTestRule.waitForIdle()
         } finally {
             file1.delete()
             tempDir.deleteRecursively()
