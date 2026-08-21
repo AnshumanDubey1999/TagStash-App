@@ -9,31 +9,10 @@ import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-
-data class FileTag(
-    val id: Long = 0,
-    val name: String,
-    val colorHex: Int = 0xFF81C784.toInt()
-)
-
-data class MetadataItem(
-    val label: String,
-    val value: String
-)
-
-data class MetadataGroup(
-    val title: String,
-    val items: List<MetadataItem>
-)
-
-data class FilePropertiesData(
-    val fileName: String,
-    val filePath: String,
-    val mimeType: String,
-    val isDirectory: Boolean,
-    val groups: List<MetadataGroup>,
-    val tags: List<FileTag> = emptyList()
-)
+import com.anshuman.tagstash.data.model.FilePropertiesData
+import com.anshuman.tagstash.data.model.FileTag
+import com.anshuman.tagstash.data.model.MetadataGroup
+import com.anshuman.tagstash.data.model.MetadataItem
 
 suspend fun getFilePropertiesData(
     file: File,

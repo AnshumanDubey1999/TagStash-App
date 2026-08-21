@@ -2,6 +2,7 @@ package com.anshuman.tagstash.ui.screens
 
 import androidx.compose.ui.geometry.Offset
 import com.anshuman.tagstash.data.utils.ImageDimensions
+import com.anshuman.tagstash.ui.components.clampOffset
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
