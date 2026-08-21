@@ -1641,4 +1641,201 @@ class MainScreenTest {
             }
         }
     }
+
+    @Test
+    fun testSearchDialogOpenAndCancel() {
+        composeTestRule.setContent {
+            TagStashTheme {
+                MainScreen(
+                    permissionGranted = true,
+                    onRequestPermission = {},
+                    homeDirectory = testDataDir
+                )
+            }
+        }
+
+        // Open 3-dot overflow menu
+        composeTestRule.onNodeWithContentDescription("More options").performClick()
+        composeTestRule.waitForIdle()
+
+        // Click Search menu item
+        composeTestRule.onNodeWithText("Search").performClick()
+        composeTestRule.waitForIdle()
+
+        // Verify Search Dialog is displayed
+        composeTestRule.onNodeWithContentDescription("Search Dialog").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Search Files").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Search text input").assertIsDisplayed()
+        composeTestRule.onNodeWithContentDescription("Include subfolders checkbox").assertIsDisplayed()
+
+        // Click Cancel
+        composeTestRule.onNodeWithContentDescription("Cancel Search").performClick()
+        composeTestRule.waitForIdle()
+
+        // Verify dialog dismissed
+        org.junit.Assert.assertTrue(
+            composeTestRule.onAllNodesWithText("Search Files").fetchSemanticsNodes().isEmpty()
+        )
+    }
+
+    @Test
+    fun testSearchInCurrentFolder() {
+        composeTestRule.setContent {
+            TagStashTheme {
+                MainScreen(
+                    permissionGranted = true,
+                    onRequestPermission = {},
+                    homeDirectory = testDataDir
+                )
+            }
+        }
+
+        // Open 3-dot menu and click Search
+        composeTestRule.onNodeWithContentDescription("More options").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Search").performClick()
+        composeTestRule.waitForIdle()
+
+        // Enter search term "image"
+        composeTestRule.onNodeWithContentDescription("Search text input").performTextInput("image")
+        composeTestRule.waitForIdle()
+
+        // Click Search button
+        composeTestRule.onNodeWithContentDescription("Confirm Search").performClick()
+        composeTestRule.waitForIdle()
+
+        // Verify search results header
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("Results for: \"image\"").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("Results for: \"image\"").assertIsDisplayed()
+
+        // Verify matches in current folder (images folder)
+        composeTestRule.onNodeWithText("images").assertIsDisplayed()
+
+        // Capture screenshot
+        composeTestRule.onRoot().captureRoboImage("screenshots/search_results_current_folder.png")
+    }
+
+    @Test
+    fun testSearchRecursiveSubfolders() {
+        composeTestRule.setContent {
+            TagStashTheme {
+                MainScreen(
+                    permissionGranted = true,
+                    onRequestPermission = {},
+                    homeDirectory = testDataDir
+                )
+            }
+        }
+
+        // Open Search
+        composeTestRule.onNodeWithContentDescription("More options").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Search").performClick()
+        composeTestRule.waitForIdle()
+
+        // Enter query "1.png" and check include subfolders
+        composeTestRule.onNodeWithContentDescription("Search text input").performTextInput("1.png")
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithContentDescription("Include subfolders checkbox").performClick()
+        composeTestRule.waitForIdle()
+
+        // Click Search
+        composeTestRule.onNodeWithContentDescription("Confirm Search").performClick()
+        composeTestRule.waitForIdle()
+
+        // Verify results
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("1.png").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("1.png").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Location: images/pngs").assertIsDisplayed()
+
+        // Capture screenshot
+        composeTestRule.onRoot().captureRoboImage("screenshots/search_results_recursive_subfolders.png")
+    }
+
+    @Test
+    fun testSearchEmptyResultsAndBackToFolder() {
+        composeTestRule.setContent {
+            TagStashTheme {
+                MainScreen(
+                    permissionGranted = true,
+                    onRequestPermission = {},
+                    homeDirectory = testDataDir
+                )
+            }
+        }
+
+        // Open Search
+        composeTestRule.onNodeWithContentDescription("More options").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Search").performClick()
+        composeTestRule.waitForIdle()
+
+        // Enter nonexistent query
+        composeTestRule.onNodeWithContentDescription("Search text input").performTextInput("nonexistent_xyz_123")
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithContentDescription("Confirm Search").performClick()
+        composeTestRule.waitForIdle()
+
+        // Verify empty search results view
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("No matching files found").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("No matching files found").assertIsDisplayed()
+
+        // Capture screenshot
+        composeTestRule.onRoot().captureRoboImage("screenshots/search_results_empty.png")
+
+        // Click "Back to Folder"
+        composeTestRule.onNodeWithText("Back to Folder").performClick()
+        composeTestRule.waitForIdle()
+
+        // Verify back in folder view
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("images").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("images").assertIsDisplayed()
+    }
+
+    @Test
+    fun testSearchBackNavigationWithTopBarArrow() {
+        composeTestRule.setContent {
+            TagStashTheme {
+                MainScreen(
+                    permissionGranted = true,
+                    onRequestPermission = {},
+                    homeDirectory = testDataDir
+                )
+            }
+        }
+
+        // Open search
+        composeTestRule.onNodeWithContentDescription("More options").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Search").performClick()
+        composeTestRule.waitForIdle()
+
+        // Enter query "video"
+        composeTestRule.onNodeWithContentDescription("Search text input").performTextInput("video")
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithContentDescription("Confirm Search").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("Results for: \"video\"").fetchSemanticsNodes().isNotEmpty()
+        }
+
+        // Click top bar back arrow
+        composeTestRule.onNodeWithContentDescription("Exit search").performClick()
+        composeTestRule.waitForIdle()
+
+        // Verify back in normal folder view
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("images").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("images").assertIsDisplayed()
+    }
 }
