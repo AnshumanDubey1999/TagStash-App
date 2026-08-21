@@ -1,6 +1,6 @@
 # Specification: 035-search-results-media-playback
 
-**Status**: IN_PROGRESS
+**Status**: DONE
 
 ---
 
