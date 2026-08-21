@@ -19,6 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
 
     steps:
       - name: Checkout repository
@@ -77,14 +78,35 @@ jobs:
           echo "NEW_VERSION_NAME=$NEW_NAME" >> $GITHUB_ENV
           echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
 
-      - name: Commit and Push Version Bump
+      - name: Create PR, Merge Version Bump, and Tag Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          RELEASE_BRANCH="release/v${{ env.NEW_VERSION_NAME }}"
+          git checkout -b "$RELEASE_BRANCH"
           git add gradle.properties
           git commit -m "[release] Bump version to v${{ env.NEW_VERSION_NAME }}"
+          git push origin "$RELEASE_BRANCH"
+
+          # Create Pull Request
+          PR_URL=$(gh pr create \
+            --base main \
+            --head "$RELEASE_BRANCH" \
+            --title "[release] Bump version to v${{ env.NEW_VERSION_NAME }}" \
+            --body "Automated version bump to v${{ env.NEW_VERSION_NAME }} for release pipeline.")
+
+          echo "Created PR: $PR_URL"
+
+          # Merge Pull Request & Delete Branch
+          gh pr merge "$PR_URL" --merge --delete-branch || gh pr merge "$PR_URL" --auto --merge
+
+          # Switch back to main, pull the merged version bump, and tag
+          git checkout main
+          git pull origin main
           git tag "${{ env.TAG_NAME }}"
-          git push origin main
           git push origin "${{ env.TAG_NAME }}"
 
       - name: Decode Release Keystore
