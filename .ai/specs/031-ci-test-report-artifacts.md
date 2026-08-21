@@ -1,6 +1,6 @@
 # Specification: 031-ci-test-report-artifacts
 
-**Status**: IN_PROGRESS
+**Status**: DONE
 
 ---
 
