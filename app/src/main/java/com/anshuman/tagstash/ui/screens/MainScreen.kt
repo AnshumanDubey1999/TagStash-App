@@ -268,16 +268,6 @@ fun MainScreen(
         }
     }
 
-    // Sync currentDirectory and reset screen view when initialDirectory changes
-    LaunchedEffect(initialDirectory) {
-        currentDirectory = initialDirectory
-        currentScreenView = "MAIN"
-        activeMediaPlayerFile = null
-        selectedPropertiesFile = null
-        isSelectionMode = false
-        selectedFiles = emptySet()
-    }
-
     // Clear selection mode when currentDirectory changes
     LaunchedEffect(currentDirectory) {
         if (isSelectionMode) {

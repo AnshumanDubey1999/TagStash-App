@@ -111,6 +111,38 @@ class MainScreenTest {
     }
 
     @Test
+    fun testStateRestorationOnConfigurationChange() {
+        val restorationTester = androidx.compose.ui.test.junit4.StateRestorationTester(composeTestRule)
+        restorationTester.setContent {
+            TagStashTheme {
+                MainScreen(
+                    permissionGranted = true,
+                    onRequestPermission = {},
+                    homeDirectory = testDataDir
+                )
+            }
+        }
+
+        // Navigate into images folder
+        composeTestRule.onNodeWithText("images").performClick()
+        composeTestRule.waitForIdle()
+
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("pngs").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("pngs").assertIsDisplayed()
+
+        // Emulate screen rotation / state restoration
+        restorationTester.emulateSavedInstanceStateRestore()
+
+        // Assert we are STILL in images subfolder (NOT back to homeDirectory!)
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("pngs").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("pngs").assertIsDisplayed()
+    }
+
+    @Test
     fun testMediaPlayerScreenWithImage() {
         val pngsFolder = File(testDataDir, "images/pngs")
         val file1 = File(pngsFolder, "1.png")
