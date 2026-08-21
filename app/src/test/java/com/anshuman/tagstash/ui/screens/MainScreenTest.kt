@@ -696,6 +696,11 @@ class MainScreenTest {
         composeTestRule.onNodeWithText("Past Actions").performClick()
         composeTestRule.waitForIdle()
 
+        // Wait for Past Actions to load
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("No Past Actions").fetchSemanticsNodes().isNotEmpty()
+        }
+
         // Verify Past Actions Screen with Empty State
         composeTestRule.onNodeWithText("Past Actions").assertIsDisplayed()
         composeTestRule.onNodeWithText("No Past Actions").assertIsDisplayed()
@@ -936,6 +941,11 @@ class MainScreenTest {
         // Click Recycle Bin row
         composeTestRule.onNodeWithText("Recycle Bin").performClick()
         composeTestRule.waitForIdle()
+
+        // Wait for Empty State to load
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("Recycle Bin is Empty").fetchSemanticsNodes().isNotEmpty()
+        }
 
         // Verify Empty State is shown
         composeTestRule.onNodeWithText("Recycle Bin is Empty").assertIsDisplayed()
