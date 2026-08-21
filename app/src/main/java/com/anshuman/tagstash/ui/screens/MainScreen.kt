@@ -268,12 +268,16 @@ fun MainScreen(
         }
     }
 
-    // Clear selection mode when currentDirectory changes
+    // Clear selection mode only when navigating to a different directory
+    var previousDirectory by remember { mutableStateOf<File?>(null) }
     LaunchedEffect(currentDirectory) {
-        if (isSelectionMode) {
-            isSelectionMode = false
-            selectedFiles = emptySet()
+        if (previousDirectory != null && previousDirectory?.absolutePath != currentDirectory.absolutePath) {
+            if (isSelectionMode) {
+                isSelectionMode = false
+                selectedFiles = emptySet()
+            }
         }
+        previousDirectory = currentDirectory
     }
 
     // Intercept hardware Back Button: Navigation stack order:

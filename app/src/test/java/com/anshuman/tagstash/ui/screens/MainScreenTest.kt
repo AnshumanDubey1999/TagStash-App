@@ -131,15 +131,70 @@ class MainScreenTest {
             composeTestRule.onAllNodesWithText("pngs").fetchSemanticsNodes().isNotEmpty()
         }
         composeTestRule.onNodeWithText("pngs").assertIsDisplayed()
+        composeTestRule.onNodeWithText("gifs").assertIsDisplayed()
 
         // Emulate screen rotation / state restoration
         restorationTester.emulateSavedInstanceStateRestore()
+        composeTestRule.waitForIdle()
 
         // Assert we are STILL in images subfolder (NOT back to homeDirectory!)
         composeTestRule.waitUntil(5000) {
             composeTestRule.onAllNodesWithText("pngs").fetchSemanticsNodes().isNotEmpty()
         }
         composeTestRule.onNodeWithText("pngs").assertIsDisplayed()
+        composeTestRule.onNodeWithText("gifs").assertIsDisplayed()
+
+        // Capture visual proof of the preserved state after rotation
+        composeTestRule.onRoot().captureRoboImage("screenshots/main_screen_subfolder_after_rotation.png")
+    }
+
+    @Test
+    fun testFolderNavigationAndSelectionPreservedAcrossRotation() {
+        val restorationTester = androidx.compose.ui.test.junit4.StateRestorationTester(composeTestRule)
+        restorationTester.setContent {
+            TagStashTheme {
+                MainScreen(
+                    permissionGranted = true,
+                    onRequestPermission = {},
+                    homeDirectory = testDataDir
+                )
+            }
+        }
+
+        // 1. Navigate into 'images' subfolder
+        composeTestRule.onNodeWithText("images").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("pngs").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("pngs").assertIsDisplayed()
+
+        // 2. Enter selection mode and select 'pngs'
+        composeTestRule.onNodeWithContentDescription("More options").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("Select").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("pngs").performClick()
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithText("1 item selected").assertIsDisplayed()
+
+        // 3. Emulate device rotation / state restoration
+        restorationTester.emulateSavedInstanceStateRestore()
+        composeTestRule.waitForIdle()
+
+        // 4. Verify we are STILL in 'images' subfolder AND '1 item selected' is retained
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("pngs").fetchSemanticsNodes().isNotEmpty()
+        }
+        composeTestRule.onNodeWithText("pngs").assertIsDisplayed()
+        composeTestRule.onNodeWithText("1 item selected").assertIsDisplayed()
+
+        // Capture Roborazzi screenshot showing preserved subfolder and selection mode after rotation
+        composeTestRule.onRoot().captureRoboImage("screenshots/main_screen_selection_and_folder_after_rotation.png")
+
+        // Clean exit from selection mode
+        composeTestRule.onNodeWithContentDescription("Close selection mode").performClick()
+        composeTestRule.waitForIdle()
     }
 
     @Test
