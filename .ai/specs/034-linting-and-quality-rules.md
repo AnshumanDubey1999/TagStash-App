@@ -1,6 +1,6 @@
 # Specification: 034-linting-and-quality-rules
 
-**Status**: IN_PROGRESS
+**Status**: DONE
 
 ---
 
