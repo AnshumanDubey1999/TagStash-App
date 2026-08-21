@@ -1,6 +1,6 @@
 package com.anshuman.tagstash
 
-import com.anshuman.tagstash.data.utils.FileTag
+import com.anshuman.tagstash.data.model.FileTag
 import com.anshuman.tagstash.data.utils.getFilePropertiesData
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*

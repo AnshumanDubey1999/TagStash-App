@@ -1,32 +1,36 @@
 package com.anshuman.tagstash.data.utils
 
-import android.graphics.BitmapFactory
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
+import android.graphics.BitmapFactory
 import android.webkit.MimeTypeMap
 import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.InsertDriveFile
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Audiotrack
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.core.content.FileProvider
 import com.anshuman.tagstash.data.model.FileItem
 import java.io.File
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Date
+import java.util.Locale
 
 fun buildBreadcrumbs(currentDir: File, homeDir: File = File("/storage/emulated/0")): List<Pair<String, File>> {
     val homePath = homeDir.absolutePath
-    
+
     val list = mutableListOf<Pair<String, File>>()
     list.add(Pair("Home", homeDir))
-    
+
     if (currentDir.absolutePath == homePath) {
         return list
     }
-    
+
     val relativePath = currentDir.absolutePath.substringAfter(homePath).trim('/')
     if (relativePath.isNotEmpty()) {
         val segments = relativePath.split('/')
@@ -104,7 +108,7 @@ fun isDocument(name: String): Boolean {
 fun openFileWithOS(context: Context, file: File) {
     val mimeType = getMimeType(file)
     val authority = "${context.packageName}.fileprovider"
-    
+
     try {
         val uri = FileProvider.getUriForFile(context, authority, file)
         val intent = Intent(Intent.ACTION_VIEW).apply {

@@ -3,6 +3,7 @@ package com.anshuman.tagstash.data.database
 import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
+import android.util.Log
 import android.database.sqlite.SQLiteOpenHelper
 import com.anshuman.tagstash.data.model.AuditActionType
 import com.anshuman.tagstash.data.model.AuditItemOutcome
@@ -407,7 +408,7 @@ class RecycleBinDatabaseHelper(context: Context) : SQLiteOpenHelper(
             }
             true
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("RecycleBin", "Error during file copy", e)
             false
         }
     }

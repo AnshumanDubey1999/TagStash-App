@@ -53,10 +53,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material.icons.filled.FolderZip
-import com.anshuman.tagstash.data.utils.FilePropertiesData
-import com.anshuman.tagstash.data.utils.FileTag
-import com.anshuman.tagstash.data.utils.MetadataGroup
-import com.anshuman.tagstash.data.utils.MetadataItem
+import com.anshuman.tagstash.data.model.FilePropertiesData
+import com.anshuman.tagstash.data.model.FileTag
+import com.anshuman.tagstash.data.model.MetadataGroup
+import com.anshuman.tagstash.data.model.MetadataItem
 import com.anshuman.tagstash.data.utils.getFilePropertiesData
 import com.anshuman.tagstash.data.utils.getMultipleFilesPropertiesData
 import com.anshuman.tagstash.data.utils.isAudio
@@ -155,7 +155,8 @@ fun FilePropertiesDialog(
                                     "Selection Properties"
                                 }
                                 val headerSubtitle = if (singleFile != null) {
-                                    if (singleFile.name == "0" || singleFile.absolutePath == "/storage/emulated/0") "Internal Storage" else if (singleFile.name.isEmpty()) singleFile.absolutePath else singleFile.name
+                                    val isRoot = singleFile.name == "0" || singleFile.absolutePath == "/storage/emulated/0"
+                                    if (isRoot) "Internal Storage" else singleFile.name.ifEmpty { singleFile.absolutePath }
                                 } else {
                                     "${files.size} items selected"
                                 }

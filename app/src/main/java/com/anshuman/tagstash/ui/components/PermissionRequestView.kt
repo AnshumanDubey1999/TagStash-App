@@ -1,7 +1,15 @@
 package com.anshuman.tagstash.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -55,7 +63,9 @@ fun PermissionRequestView(
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = "TagStash is a local file explorer and media organizer. It requires \"All Files Access\" permission to view, play, and tag the directories in your primary storage.",
+            text = "TagStash is a local file explorer and media organizer. " +
+                "It requires \"All Files Access\" permission to view, play, " +
+                "and tag the directories in your primary storage.",
             textAlign = TextAlign.Center,
             fontSize = 14.sp,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
