@@ -733,7 +733,7 @@ class MainScreenTest {
                     MainScreen(
                         permissionGranted = true,
                         onRequestPermission = {},
-                        homeDirectory = testDataDir,
+                        homeDirectory = tempDir,
                         initialDirectory = tempDir
                     )
                 }
@@ -867,7 +867,7 @@ class MainScreenTest {
                     MainScreen(
                         permissionGranted = true,
                         onRequestPermission = {},
-                        homeDirectory = testDataDir,
+                        homeDirectory = tempDir,
                         initialDirectory = tempDir
                     )
                 }
@@ -1539,6 +1539,11 @@ class MainScreenTest {
             composeTestRule.waitUntil(5000) { !file1.exists() && !file2.exists() }
             org.junit.Assert.assertFalse(file1.exists())
             org.junit.Assert.assertFalse(file2.exists())
+
+            // Wait for progress dialog to dismiss
+            composeTestRule.waitUntil(5000) {
+                composeTestRule.onAllNodesWithText("Moving to Recycle Bin...").fetchSemanticsNodes().isEmpty()
+            }
         } finally {
             file1.delete()
             file2.delete()

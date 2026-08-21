@@ -98,28 +98,29 @@ fun MainScreen(
     initialDirectory: File = homeDirectory
 ) {
     val context = LocalContext.current
-    var currentDirectory by rememberSaveable(initialDirectory, stateSaver = FileSaver) { mutableStateOf(initialDirectory) }
+    val dirKey = initialDirectory.absolutePath
+    var currentDirectory by rememberSaveable(dirKey, stateSaver = FileSaver) { mutableStateOf(initialDirectory) }
     var filesList by remember { mutableStateOf<List<FileItem>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-    var activeMediaPlayerFile by rememberSaveable(initialDirectory, stateSaver = NullableFileSaver) { mutableStateOf<File?>(null) }
+    var activeMediaPlayerFile by rememberSaveable(dirKey, stateSaver = NullableFileSaver) { mutableStateOf<File?>(null) }
     var globalLoopEnabled by rememberSaveable { mutableStateOf(true) }
     var isRefreshing by remember { mutableStateOf(false) }
     var refreshTrigger by remember { mutableStateOf(0) }
-    var selectedPropertiesFile by rememberSaveable(initialDirectory, stateSaver = NullableFileSaver) { mutableStateOf<File?>(null) }
+    var selectedPropertiesFile by rememberSaveable(dirKey, stateSaver = NullableFileSaver) { mutableStateOf<File?>(null) }
 
     // Selection Mode State
-    var isSelectionMode by rememberSaveable(initialDirectory) { mutableStateOf(false) }
-    var selectedFiles by rememberSaveable(initialDirectory, stateSaver = FileSetSaver) { mutableStateOf(emptySet<File>()) }
-    var showSelectionPropertiesDialog by rememberSaveable(initialDirectory) { mutableStateOf(false) }
+    var isSelectionMode by rememberSaveable(dirKey) { mutableStateOf(false) }
+    var selectedFiles by rememberSaveable(dirKey, stateSaver = FileSetSaver) { mutableStateOf(emptySet<File>()) }
+    var showSelectionPropertiesDialog by rememberSaveable(dirKey) { mutableStateOf(false) }
 
     // Screen Navigation State (MAIN, SETTINGS, PAST_ACTIONS)
-    var currentScreenView by rememberSaveable(initialDirectory) { mutableStateOf("MAIN") }
+    var currentScreenView by rememberSaveable(dirKey) { mutableStateOf("MAIN") }
 
     // Clipboard and Paste State
     val coroutineScope = rememberCoroutineScope()
-    var showClipboardDialog by rememberSaveable(initialDirectory) { mutableStateOf(false) }
-    var showCapacityLimitDialog by rememberSaveable(initialDirectory) { mutableStateOf(false) }
+    var showClipboardDialog by rememberSaveable(dirKey) { mutableStateOf(false) }
+    var showCapacityLimitDialog by rememberSaveable(dirKey) { mutableStateOf(false) }
     var activeConflictFile by remember { mutableStateOf<File?>(null) }
     var conflictDeferred by remember { mutableStateOf<CompletableDeferred<Pair<ConflictResolution, Boolean>>?>(null) }
     var isPasting by remember { mutableStateOf(false) }
