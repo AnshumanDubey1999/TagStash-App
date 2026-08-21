@@ -33,11 +33,26 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x gradlew
 
+      - name: Run File Length Check (checkFileLength)
+        run: ./gradlew checkFileLength
+
+      - name: Run Detekt Static Analysis (detekt)
+        run: ./gradlew detekt
+
       - name: Run Build (assembleDebug)
         run: ./gradlew assembleDebug
 
       - name: Run Tests (test)
         run: ./gradlew test
+
+      - name: Upload Detekt Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: detekt-reports
+          path: app/build/reports/detekt/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload Unit Test HTML Reports
         if: always()
@@ -66,5 +81,5 @@ jobs:
             app/screenshots/
             app/build/outputs/roborazzi/
             app/build/reports/roborazzi/
-          if-no-files-found: warn
+            if-no-files-found: warn
           retention-days: 14
