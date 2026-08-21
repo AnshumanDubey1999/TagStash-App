@@ -124,6 +124,9 @@ class MainScreenTest {
         }
 
         // Navigate into images folder
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("images").fetchSemanticsNodes().isNotEmpty()
+        }
         composeTestRule.onNodeWithText("images").performClick()
         composeTestRule.waitForIdle()
 
@@ -162,6 +165,9 @@ class MainScreenTest {
         }
 
         // 1. Navigate into 'images' subfolder
+        composeTestRule.waitUntil(5000) {
+            composeTestRule.onAllNodesWithText("images").fetchSemanticsNodes().isNotEmpty()
+        }
         composeTestRule.onNodeWithText("images").performClick()
         composeTestRule.waitForIdle()
         composeTestRule.waitUntil(5000) {
@@ -1712,6 +1718,7 @@ class MainScreenTest {
 
         // Verify matches in current folder (images folder)
         composeTestRule.onNodeWithText("images").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Location: .").assertIsDisplayed()
 
         // Capture screenshot
         composeTestRule.onRoot().captureRoboImage("screenshots/search_results_current_folder.png")

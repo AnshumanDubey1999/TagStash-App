@@ -36,7 +36,7 @@ fun SearchResultsView(
     scannedCount: Int,
     query: String,
     includeSubfolders: Boolean,
-    baseDirectory: File,
+    homeDirectory: File = File("/storage/emulated/0"),
     onBackToFolder: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -106,7 +106,7 @@ fun SearchResultsView(
                 items(searchResults) { searchItem ->
                     SearchResultItem(
                         item = searchItem,
-                        baseDirectory = baseDirectory
+                        homeDirectory = homeDirectory
                     )
                 }
             }

@@ -3,6 +3,8 @@ package com.anshuman.tagstash.ui.components
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
@@ -10,9 +12,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -27,9 +32,15 @@ fun SearchDialog(
 ) {
     var query by remember { mutableStateOf(initialQuery) }
     var includeSubfolders by remember { mutableStateOf(initialIncludeSubfolders) }
+    val focusRequester = remember { FocusRequester() }
 
     val trimmedQuery = query.trim()
     val canSearch = trimmedQuery.isNotEmpty()
+
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(100)
+        focusRequester.requestFocus()
+    }
 
     Dialog(
         onDismissRequest = onDismissRequest,
@@ -105,10 +116,19 @@ fun SearchDialog(
                     onValueChange = { query = it },
                     modifier = Modifier
                         .fillMaxWidth()
+                        .focusRequester(focusRequester)
                         .semantics { contentDescription = "Search text input" },
                     label = { Text("Search term") },
                     placeholder = { Text("e.g. document, photo, video") },
                     singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(
+                        onSearch = {
+                            if (canSearch) {
+                                onSearch(trimmedQuery, includeSubfolders)
+                            }
+                        }
+                    ),
                     trailingIcon = {
                         if (query.isNotEmpty()) {
                             IconButton(onClick = { query = "" }) {
