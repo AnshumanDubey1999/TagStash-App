@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Deselect
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
@@ -57,6 +58,7 @@ fun BreadcrumbsBar(
     onDeleteSelected: (() -> Unit)? = null,
     onPasteClick: (() -> Unit)? = null,
     onClipboardClick: (() -> Unit)? = null,
+    onSearchClick: (() -> Unit)? = null,
     onInfoClick: (() -> Unit)? = null,
     onSettingsClick: (() -> Unit)? = null
 ) {
@@ -240,6 +242,23 @@ fun BreadcrumbsBar(
                             onClick = {
                                 showMenu = false
                                 onClipboardClick?.invoke()
+                            }
+                        )
+                    }
+
+                    if (!isSelectionMode) {
+                        DropdownMenuItem(
+                            text = { Text("Search") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            },
+                            onClick = {
+                                showMenu = false
+                                onSearchClick?.invoke()
                             }
                         )
                     }
